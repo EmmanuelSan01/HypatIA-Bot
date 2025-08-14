@@ -1,0 +1,13 @@
+# Ignorar archivos de entorno
+.env
+
+# Ignorar dependencias de Python
+_pycache_/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar entornos virtuales
+venv/
+env/
+.venv/
