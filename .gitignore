@@ -1,6 +1,9 @@
 # Ignorar archivos de entorno
 .env
 
+# Ignorar certificados CA
+*.pem
+
 # Ignorar dependencias de Python
 _pycache_/
 *.pyc
