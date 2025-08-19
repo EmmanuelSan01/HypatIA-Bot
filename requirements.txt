@@ -151,3 +151,7 @@ xmltodict==0.14.2
 xxhash==3.5.0
 yarl==1.20.1
 zstandard==0.23.0
+
+# ===== DEPENDENCIAS ADICIONALES PARA TELEGRAM =====
+python-telegram-bot==20.8
+redis==5.2.1
