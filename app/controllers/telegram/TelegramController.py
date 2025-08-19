@@ -19,23 +19,17 @@ from app.config import Config
 logger = logging.getLogger(__name__)
 
 class TelegramController:
-    """
-    Controlador para manejar la lógica de interacción con Telegram y el LLM
-    """
+    
+    # Controlador para manejar la lógica de interacción con Telegram y el LLM
+    
     
     def __init__(self):
         self.bot_token = Config.TELEGRAM_BOT_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.bot_token}"
         self.agent = TaekwondoAgent()
-        self.active_sessions = {}  # Cache de sesiones activas
+        self.active_sessions = {}  
         
     async def process_message(self, webhook_data: TelegramWebhookRequest) -> None:
-        """
-        Procesa un mensaje recibido del webhook de Telegram
-        
-        Args:
-            webhook_data: Datos del webhook validados
-        """
         try:
             # Extraer el mensaje (puede ser mensaje nuevo o editado)
             message = webhook_data.message or webhook_data.edited_message
@@ -76,9 +70,9 @@ class TelegramController:
                 await self._send_error_message(message.chat.id)
     
     async def _get_or_create_session(self, user, chat) -> ChatSession:
-        """
-        Obtiene o crea una sesión de chat para el usuario
-        """
+        
+        # Obtiene o crea una sesión de chat para el usuario
+        
         session_key = f"{user.id}_{chat.id}"
         
         if session_key in self.active_sessions:
@@ -130,25 +124,13 @@ class TelegramController:
         return None
     
     async def _get_recent_chat_history(self, session: ChatSession) -> list:
-        """
-        Obtiene el historial reciente de chat para contexto
-        """
-        # Aquí podrías implementar lógica para obtener mensajes recientes
-        # desde la base de datos o cache
+        
+        # Obtiene el historial reciente de chat para contexto
+        
         return []
     
     async def _send_telegram_message(self, chat_id: int, text: str, reply_to_message_id: Optional[int] = None) -> bool:
-        """
-        Envía un mensaje a través del API de Telegram
         
-        Args:
-            chat_id: ID del chat
-            text: Texto a enviar
-            reply_to_message_id: ID del mensaje al que se responde
-            
-        Returns:
-            bool: True si el mensaje se envió correctamente
-        """
         try:
             telegram_response = TelegramResponse(
                 chat_id=chat_id,
@@ -175,23 +157,23 @@ class TelegramController:
             return False
     
     async def _send_error_message(self, chat_id: int) -> None:
-        """
-        Envía un mensaje de error genérico al usuario
-        """
+        
+        # Envía un mensaje de error genérico al usuario
+        
         error_message = "🚫 Ups! Algo salió mal. Nuestro equipo técnico ya está trabajando en solucionarlo. Por favor, intenta de nuevo en unos minutos."
         await self._send_telegram_message(chat_id, error_message)
     
     async def _update_session(self, session: ChatSession) -> None:
-        """
-        Actualiza la información de la sesión
-        """
+        
+        # Actualiza la información de la sesión
+        
         session.last_activity = datetime.now()
         session.message_count += 1
     
     async def _log_interaction(self, session: ChatSession, user_message: str, bot_response: str) -> None:
-        """
-        Registra la interacción en la base de datos para logs y análisis
-        """
+        
+        # Registra la interacción en la base de datos para logs y análisis
+        
         try:
             # Aquí implementarías la lógica para guardar en la BD
             # usando las tablas chat y mensaje del DDL proporcionado
@@ -200,9 +182,9 @@ class TelegramController:
             logger.error(f"Error registrando interacción: {str(e)}")
     
     async def cleanup_inactive_sessions(self, max_idle_minutes: int = 30) -> None:
-        """
-        Limpia sesiones inactivas para liberar memoria
-        """
+        
+        # Limpia sesiones inactivas para liberar memoria
+        
         current_time = datetime.now()
         inactive_sessions = []
         

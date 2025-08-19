@@ -17,15 +17,9 @@ telegram_controller = TelegramController()
 
 @telegram_router.post("/webhook")
 async def telegram_webhook(webhook_data: TelegramWebhookRequest):
-    """
-    Endpoint que recibe los webhooks de Telegram
     
-    Args:
-        webhook_data: Datos del webhook de Telegram validados por Pydantic
+    # Endpoint que recibe los webhooks de Telegram
     
-    Returns:
-        dict: Respuesta de confirmación
-    """
     try:
         logger.info(f"Webhook recibido: {webhook_data.dict()}")
         
@@ -41,7 +35,7 @@ async def telegram_webhook(webhook_data: TelegramWebhookRequest):
 
 @telegram_router.get("/health")
 async def health_check():
-    """
-    Endpoint de health check para verificar que el servicio está funcionando
-    """
+    
+    # Endpoint de health check para verificar que el servicio está funcionando
+    
     return {"status": "healthy", "service": "telegram_bot"}

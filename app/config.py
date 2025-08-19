@@ -1,21 +1,17 @@
 import os
 from decouple import config
 
-
 class Config:
     
-    # Configuración simplificada para el bot de Telegram
-    
-    
-    # Configuración básica
+    # Configuración para el bot de Telegram
     DEBUG = config('DEBUG', default=True, cast=bool)
     SECRET_KEY = config('SECRET_KEY', default='change-this-secret-key')
     
-    # Telegram Bot (REQUERIDO)
+    # Telegram Bot
     TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
     
-    # LLM - Groq
-    GROQ_API_KEY = config('GROQ_API_KEY', default='')
+    # LLM - OpenAI
+    OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
     
     # Base de datos (opcional)
     DB_HOST = config('DB_HOST', default='localhost')
@@ -32,12 +28,15 @@ class Config:
     
     @classmethod
     def validate_required(cls):
-        # Valida configuración mínima requerida
-        if not cls.TELEGRAM_BOT_TOKEN:
-            raise ValueError("❌ TELEGRAM_BOT_TOKEN es requerido")
+        errors = []
         
-        if not any([cls.GROQ_API_KEY]):
-            raise ValueError("❌ Se requiere al menos una API key de LLM (GROQ_API_KEY recomendado)")
+        if not cls.OPENAI_API_KEY:
+            errors.append("❌ OPENAI_API_KEY es requerido")
+        elif not cls.OPENAI_API_KEY.startswith('sk-'):
+            errors.append("❌ OPENAI_API_KEY debe comenzar con 'sk-'")
+        
+        if errors:
+            raise ValueError("\n".join(errors))
         
         print("✅ Configuración válida")
         return True
