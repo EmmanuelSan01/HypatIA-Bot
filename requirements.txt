@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ahocorapy==1.6.2
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.15
@@ -155,3 +156,44 @@ zstandard==0.23.0
 # ===== DEPENDENCIAS ADICIONALES PARA TELEGRAM =====
 python-telegram-bot==20.8
 redis==5.2.1
+=======
+# FastAPI y servidor web
+fastapi==0.116.1
+uvicorn==0.35.0
+python-multipart==0.0.9
+
+# Base de datos
+mysqlclient==2.2.7
+sqlalchemy==2.0.41
+alembic==1.13.1
+
+# Configuración y variables de entorno
+python-dotenv==1.1.1
+pydantic==2.11.7
+pydantic-settings==2.10.1
+
+# Qdrant (base de datos vectorial)
+qdrant-client==1.8.0
+
+# Redis (caché)
+redis==5.2.1
+
+# HTTP y requests
+httpx==0.28.1
+requests==2.32.4
+
+# Utilidades
+python-dateutil==2.9.0.post0
+pytz==2025.2
+
+# Logging
+coloredlogs==15.0.1
+
+# Seguridad
+cryptography==45.0.5
+passlib==1.7.4
+python-jose==3.3.0
+
+# CORS
+fastapi-cors==0.0.6
+>>>>>>> 3ae1d24c790c49c79141f24f2dc6eb23d67313e9
