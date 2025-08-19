@@ -1,9 +1,78 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 import pymysql
 from app.database import get_sync_connection
 from app.models.chat.ChatModel import ChatCreate, ChatUpdate, ChatResponse
+from app.services.agent import AgentService
+from app.services.data_sync import DataSyncService
 
 class ChatController:
+    
+    def __init__(self):
+        self.agent_service = AgentService()
+        self.data_sync_service = DataSyncService()
+    
+    async def process_message(self, message: str, user_id: Optional[int] = None) -> Dict:
+        """Process message using RAG instead of direct SQL queries"""
+        try:
+            # Use RAG to process the query
+            response = await self.agent_service.process_query_with_rag(message)
+            
+            # Store conversation in database if user_id provided
+            if user_id:
+                await self._store_conversation(user_id, message, response.get("reply", ""))
+            
+            return {
+                "status": "success",
+                "message": "Consulta procesada exitosamente",
+                "data": {
+                    "reply": response.get("reply", ""),
+                    "sources": response.get("sources", []),
+                    "relevance_score": response.get("relevance_score", 0.0),
+                    "context_used": response.get("context_used", [])
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Error procesando mensaje: {str(e)}",
+                "data": {
+                    "reply": "Lo siento, ocurrió un error procesando tu consulta. Por favor intenta nuevamente.",
+                    "sources": [],
+                    "relevance_score": 0.0
+                }
+            }
+    
+    async def _store_conversation(self, user_id: int, user_message: str, bot_response: str):
+        """Store conversation in database for persistence"""
+        connection = get_sync_connection()
+        try:
+            with connection.cursor() as cursor:
+                # Update or create chat record
+                sql_check = "SELECT id FROM chat WHERE usuarioId = %s ORDER BY fechaCreacion DESC LIMIT 1"
+                cursor.execute(sql_check, (user_id,))
+                chat_record = cursor.fetchone()
+                
+                if chat_record:
+                    # Update existing chat
+                    sql_update = """
+                    UPDATE chat 
+                    SET ultimoMensaje = %s, totalMensajes = totalMensajes + 1 
+                    WHERE id = %s
+                    """
+                    cursor.execute(sql_update, (user_message, chat_record['id']))
+                else:
+                    # Create new chat
+                    sql_insert = """
+                    INSERT INTO chat (usuarioId, chatId, ultimoMensaje, totalMensajes) 
+                    VALUES (%s, %s, %s, %s)
+                    """
+                    cursor.execute(sql_insert, (user_id, f"chat_{user_id}", user_message, 1))
+                
+                connection.commit()
+                
+        finally:
+            connection.close()
     
     @staticmethod
     def create_chat(chat: ChatCreate) -> ChatResponse:
