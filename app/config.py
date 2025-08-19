@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import os
 from pydantic_settings import BaseSettings
 from typing import Optional
@@ -62,3 +63,5 @@ def get_redis_config() -> dict:
         "host": settings.redis_host,
         "port": settings.redis_port
     }
+=======
+>>>>>>> 0722f672a23594047ef35d32487a48664e1f0ecd
