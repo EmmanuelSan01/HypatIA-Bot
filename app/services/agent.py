@@ -1,14 +1,17 @@
-# Lógica de interacción con el LLM - ESPECIALIZADO EN PRODUCTOS
-
-import asyncio
 import logging
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-from openai import AsyncOpenAI 
+from typing import List, Dict, Any, Optional
+import asyncio
+
 from app.config import Config
+from app.services.qdrant import QdrantService
+from app.services.embedding import EmbeddingService
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+# ==============================
+# Clase 1: Agente Hardcoded
+# ==============================
 class TaekwondoAgent:
     
     # Agente especializado en productos de Taekwondo 
@@ -1149,3 +1152,156 @@ INCLUIR:
 ENFOQUE: Comparación comercial pura para facilitar decisión de compra.
         """
         return await self.process_message(comparison_prompt)
+
+# ==============================
+# Clase 2: Agente RAG (Qdrant)
+# ==============================
+
+class AgentService:
+    def __init__(self):
+        self.qdrant_service = QdrantService()
+        self.embedding_service = EmbeddingService()
+        self.openai_client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
+
+    async def process_query(self, query: str, user_id: str, context: Optional[Dict] = None) -> str:
+        """
+        Procesa una consulta del usuario usando RAG (Qdrant + embeddings)
+        """
+        try:
+            query_embedding = await self.embedding_service.generate_embedding(query)
+
+            relevant_docs = await self.qdrant_service.search_similar(
+                query_embedding,
+                limit=5,
+                collection_name="productos"
+            )
+
+            context_text = self._build_context(relevant_docs, context)
+
+            response = await self._generate_response(query, context_text, user_id)
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error processing query: {str(e)}")
+            return None  # devolvemos None, el orquestador decide fallback
+
+    def _build_context(self, relevant_docs: List[Dict], additional_context: Optional[Dict] = None) -> str:
+        context_parts = []
+
+        if relevant_docs:
+            context_parts.append("📦 Información de productos relevantes de la base de datos:")
+            for doc in relevant_docs:
+                payload = doc.get("payload", {})
+                context_parts.append(f"- {payload.get('nombre', 'N/A')}: {payload.get('descripcion', 'N/A')}")
+                context_parts.append(f"  💰 Precio: {payload.get('precio', 'N/A')}")
+                context_parts.append(f"  📂 Categoría: {payload.get('categoria', 'N/A')}")
+
+        if additional_context:
+            context_parts.append("\nℹ️ Información adicional:")
+            for key, value in additional_context.items():
+                context_parts.append(f"- {key}: {value}")
+
+        return "\n".join(context_parts)
+
+    async def _generate_response(self, query: str, context: str, user_id: str) -> str:
+        system_prompt = """
+        Eres BaekhoBot 🥋, asistente comercial especializado en productos de Taekwondo.
+        Tu objetivo es ayudar a los clientes a encontrar el equipamiento perfecto.
+        - Sé claro y conciso
+        - Incluye precios y categorías
+        - Usa tono amigable y profesional
+        """
+
+        user_prompt = f"""
+        Consulta: {query}
+
+        Contexto disponible:
+        {context}
+        """
+
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=600,
+                temperature=0.5
+            )
+
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            logger.error(f"Error generating response with OpenAI: {str(e)}")
+            return None
+
+    async def get_product_recommendations(self, category: str, budget: Optional[float] = None) -> List[Dict]:
+        try:
+            search_query = f"productos de {category}"
+            if budget:
+                search_query += f" con precio menor a {budget}"
+
+            query_embedding = await self.embedding_service.generate_embedding(search_query)
+
+            results = await self.qdrant_service.search_similar(
+                query_embedding,
+                limit=10,
+                collection_name="productos"
+            )
+
+            recommendations = []
+            for result in results:
+                payload = result.get("payload", {})
+                precio = payload.get("precio", 0)
+
+                if budget is None or precio <= budget:
+                    recommendations.append({
+                        "id": payload.get("id"),
+                        "nombre": payload.get("nombre"),
+                        "descripcion": payload.get("descripcion"),
+                        "precio": precio,
+                        "categoria": payload.get("categoria"),
+                        "score": result.get("score", 0),
+                    })
+
+            return recommendations[:5]
+
+        except Exception as e:
+            logger.error(f"Error getting product recommendations: {str(e)}")
+            return []
+
+
+# ==============================
+# Clase 3: Orquestador
+# ==============================
+
+class BaekhoAgent:
+    """
+    Orquesta entre el agente RAG (dinámico) y el agente hardcoded (fallback).
+    """
+    def __init__(self):
+        self.rag_agent = AgentService()
+        self.hardcoded_agent = TaekwondoAgent()
+
+    async def process_message(self, message: str, user_info: Dict[str, Any] = None) -> str:
+        # 1️⃣ Intentamos primero con RAG (Qdrant)
+        response = await self.rag_agent.process_query(message, user_info.get("id", "anonimo"))
+
+        # 2️⃣ Si RAG no devuelve nada, usamos fallback hardcoded
+        if not response:
+            logger.info("⚠️ Usando fallback hardcoded de TaekwondoAgent")
+            response = await self.hardcoded_agent.process_message(message, user_info)
+
+        return response
+
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            "rag_available": True,
+            "fallback_available": self.hardcoded_agent.is_available(),
+            "models": {
+                "rag": "gpt-4o-mini + Qdrant",
+                "hardcoded": "gpt-4o-mini (catálogo estático)"
+            }
+        }
