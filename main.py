@@ -52,7 +52,7 @@ async def startup_event():
         
         # Initialize Qdrant service
         qdrant_service = QdrantService()
-        await qdrant_service.create_collection_if_not_exists()
+        qdrant_service.create_collection_if_not_exists()
         logger.info("Qdrant collection initialized successfully")
         
         # Optional: Perform initial data synchronization
