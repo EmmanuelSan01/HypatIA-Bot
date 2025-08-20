@@ -282,6 +282,59 @@ docker-compose exec app pip install nueva-dependencia
 
 # Ejecutar tests
 docker-compose exec app python -m pytest
+
+# Ejecutar tests con detalle
+docker-compose exec app python -m pytest -v
+
+# Ejecutar tests específicos
+docker-compose exec app python -m pytest tests/test_api.py -v
+```
+
+## 🧪 Testing
+
+El proyecto incluye pruebas unitarias y de integración para todos los endpoints de la API.
+
+### Ejecutar Tests
+```bash
+# Ejecutar todas las pruebas
+python -m pytest tests/ -v
+
+# Ejecutar pruebas específicas
+python -m pytest tests/test_api.py -v
+
+# Ejecutar con cobertura
+python -m pytest tests/ --cov=app --cov-report=html
+```
+
+### Estructura de Tests
+```
+tests/
+├── test_api.py           # Pruebas de endpoints de la API
+├── conftest.py           # Configuración de fixtures (futuro)
+└── __init__.py           # Marca el directorio como paquete
+```
+
+### Pruebas Incluidas
+- ✅ **Endpoint de salud** (`GET /health`)
+- ✅ **Endpoint de chat** (`POST /chats/message`)
+- ✅ **Webhook de Telegram** (`POST /telegram/webhook`)
+- ✅ **Endpoints de administración** (verificación de 404)
+- ✅ **Validación de datos** y casos de error
+- ✅ **Mocking de servicios externos** (LLM, Telegram)
+
+### Dependencias de Testing
+Las siguientes dependencias están incluidas en `requirements.txt`:
+- `pytest==8.2.2` - Framework de testing
+- `pytest-asyncio==0.24.0` - Soporte para tests async
+- `httpx==0.28.1` - Cliente HTTP para testing (incluido con FastAPI)
+
+### Ejecutar Tests en Docker
+```bash
+# Dentro del contenedor
+docker-compose exec app python -m pytest tests/ -v
+
+# Desde fuera del contenedor
+docker-compose exec app bash -c "python -m pytest tests/ -v"
 ```
 
 ## 🔒 Configuración de Seguridad
