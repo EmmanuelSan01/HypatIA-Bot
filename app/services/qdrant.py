@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 import anyio
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, SearchRequest, PointStruct
+from qdrant_client.models import Filter, FieldCondition, MatchValue, SearchRequest, PointStruct, VectorParams, Distance, PointStruct
 from app.config import *
 
 logger = logging.getLogger(__name__)
@@ -19,19 +19,40 @@ QDRANT_ENABLED = os.getenv("QDRANT_ENABLED", "true").lower() == "true"
 
 # Embeddings: puedes cambiar por OpenAI con una flag (ver requisitos). :contentReference[oaicite:2]{index=2}
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-small")
+VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", 384))
 
 _client: Optional[QdrantClient] = None
 
 class QdrantService:
     def __init__(self):
-        """Initialize Qdrant client and collections"""
         self.client = QdrantClient(
             host=QDRANT_HOST,
             port=QDRANT_PORT,
             api_key=QDRANT_API_KEY if QDRANT_API_KEY else None
         )
         self.collection_name = QDRANT_COLLECTION_NAME
-        self.vector_size = EMBED_MODEL
+        self.vector_size = VECTOR_SIZE
+
+    def create_collection_if_not_exists(self):
+        """Create collection if it doesn't exist"""
+        try:
+            collections = self.client.get_collections()
+            collection_names = [col.name for col in collections.collections]
+
+            if self.collection_name not in collection_names:
+                self.client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=VectorParams(
+                        size=self.vector_size,
+                        distance=Distance.COSINE
+                    )
+                )
+                logger.info(f"Created collection: {self.collection_name}")
+            else:
+                logger.info(f"Collection {self.collection_name} already exists")
+        except Exception as e:
+            logger.error(f"Error creating collection: {str(e)}")
+            raise
         
     def initialize_collection(self):
         """Create collection if it doesn't exist"""

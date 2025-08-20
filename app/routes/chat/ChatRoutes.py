@@ -4,6 +4,7 @@ from app.controllers.chat.ChatController import ChatController
 from app.models.chat.ChatModel import ChatCreate, ChatUpdate, ChatResponse
 from app.models.ingest.IngestModel import ChatMessageRequest, ChatMessageResponse
 
+admin_router = APIRouter(prefix="/admin/chats", tags=["chats"])
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 # Initialize controller
@@ -47,12 +48,12 @@ def create_chat(chat: ChatCreate):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.get("/", response_model=List[ChatResponse])
+@admin_router.get("/", response_model=List[ChatResponse])
 def get_all_chats():
     """Get all chats"""
     return ChatController.get_all_chats()
 
-@router.get("/{chat_id}", response_model=ChatResponse)
+@admin_router.get("/{chat_id}", response_model=ChatResponse)
 def get_chat(chat_id: int):
     """Get chat by ID"""
     chat = ChatController.get_chat_by_id(chat_id)
@@ -60,7 +61,7 @@ def get_chat(chat_id: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     return chat
 
-@router.get("/usuario/{usuario_id}", response_model=List[ChatResponse])
+@admin_router.get("/usuario/{usuario_id}", response_model=List[ChatResponse])
 def get_chats_by_usuario(usuario_id: int):
     """Get chats by usuario"""
     return ChatController.get_chats_by_usuario(usuario_id)
