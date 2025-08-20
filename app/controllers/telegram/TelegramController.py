@@ -22,7 +22,6 @@ class TelegramController:
     
     # Controlador para manejar la lógica de interacción con Telegram y el LLM
     
-    
     def __init__(self):
         self.bot_token = Config.TELEGRAM_BOT_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.bot_token}"
