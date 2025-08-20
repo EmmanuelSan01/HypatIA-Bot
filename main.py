@@ -8,6 +8,7 @@ from app.routes.producto.ProductoRoutes import router as producto_router
 from app.routes.promocion.PromocionRoutes import router as promocion_router
 from app.routes.usuario.UsuarioRoutes import router as usuario_router
 from app.routes.chat.ChatRoutes import router as chat_router
+from app.routes.chat.ChatRoutes import admin_router as chat_admin_router
 from app.routes.ingest.IngestRoutes import router as ingest_router
 from app.routes.telegram.TelegramRoutes import telegram_router
 
@@ -43,6 +44,7 @@ app.include_router(producto_router, prefix="/api/v1")
 app.include_router(promocion_router, prefix="/api/v1")
 app.include_router(usuario_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(chat_admin_router, prefix="/api/v1")
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(telegram_router)
 
