@@ -21,7 +21,7 @@ class DataSyncService:
             logger.info("Starting complete data synchronization")
             
             # Initialize Qdrant collection if not exists
-            await self.qdrant_service.create_collection_if_not_exists()
+            self.qdrant_service.create_collection_if_not_exists()
             
             # Sync all data types
             productos_count = await self._sync_productos()
@@ -246,7 +246,7 @@ class DataSyncService:
     async def get_sync_status(self) -> Dict:
         """Get current synchronization status"""
         try:
-            collection_info = await self.qdrant_service.get_collection_info()
+            collection_info = self.qdrant_service.get_collection_info()
             
             return {
                 "status": "success",
