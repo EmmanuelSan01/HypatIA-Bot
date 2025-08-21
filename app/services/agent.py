@@ -1159,6 +1159,7 @@ ENFOQUE: Comparación comercial pura para facilitar decisión de compra.
 
 class AgentService:
     def __init__(self):
+        # ... (other initializations) ...
         self.qdrant_service = QdrantService()
         self.embedding_service = EmbeddingService()
         self.openai_client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
@@ -1170,10 +1171,10 @@ class AgentService:
         try:
             query_embedding = await self.embedding_service.generate_embedding(query)
 
-            relevant_docs = await self.qdrant_service.search_similar(
+            # Remove 'await' here because search_similar() returns a list, not a coroutine.
+            relevant_docs = self.qdrant_service.search_similar(
                 query_embedding,
-                limit=5,
-                collection_name="productos"
+                limit=5
             )
 
             context_text = self._build_context(relevant_docs, context)
@@ -1184,7 +1185,7 @@ class AgentService:
 
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}")
-            return None  # devolvemos None, el orquestador decide fallback
+            return None
 
     def _build_context(self, relevant_docs: List[Dict], additional_context: Optional[Dict] = None) -> str:
         context_parts = []
@@ -1231,7 +1232,11 @@ class AgentService:
                 temperature=0.5
             )
 
-            return response.choices[0].message.content.strip()
+            return {
+                "reply": response.choices[0].message.content.strip(),
+                "sources": [], # You can populate this with relevant info from context
+                "relevance_score": 0.0 # You can calculate this based on the search
+            }
 
         except Exception as e:
             logger.error(f"Error generating response with OpenAI: {str(e)}")

@@ -39,7 +39,7 @@ class SyncStatusResponse(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     """Request model for RAG chat messages"""
-    message: str = Field(description="User message to process")
+    message: str = Field(description="User message to process", min_length=1)
     user_id: Optional[int] = Field(
         default=None,
         description="User ID for conversation persistence"

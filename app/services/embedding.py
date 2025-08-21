@@ -16,6 +16,16 @@ class EmbeddingService:
         except Exception as e:
             logger.error(f"Error loading embedding model: {str(e)}")
             raise
+
+    async def generate_embedding(self, text: str) -> List[float]:
+        """
+        Generates an embedding for a given text using a pre-trained model.
+        """
+        # Encode the text to a numerical vector
+        embedding = self.model.encode(text)
+        
+        # Convert the numpy array to a list of floats
+        return embedding.tolist()
     
     def encode_text(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
         """

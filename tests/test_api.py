@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 import json
-from app.main import app
+from main import app
 
 # Crear cliente de prueba
 client = TestClient(app)

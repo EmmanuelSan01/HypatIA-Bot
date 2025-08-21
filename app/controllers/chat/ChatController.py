@@ -15,7 +15,7 @@ class ChatController:
         """Process message using RAG instead of direct SQL queries"""
         try:
             # Use RAG to process the query
-            response = await self.agent_service.process_query_with_rag(message)
+            response = await self.agent_service.process_query(message, user_id)
             
             # Store conversation in database if user_id provided
             if user_id:
