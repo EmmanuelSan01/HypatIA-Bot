@@ -66,13 +66,24 @@ class TestAPIEndpoints:
             "relevance_score": 0.9,
             "context_used": []
         }
-
-        test_message = {"message": "Hola, necesito ayuda", "user_id": 123, "context_limit": 5}
+        
+        test_message = {"message": "Hola, necesito ayuda", "user_id": 123}
         response = client.post("/api/v1/chats/message", json=test_message)
 
         assert response.status_code == 200
         data = response.json()
+        assert "status" in data
+        assert data["status"] == "success"
+        assert "message" in data
+        assert "data" in data
         assert "reply" in data["data"]
+        assert data["data"]["reply"] == "Respuesta personalizada para el usuario."
+
+        # Verificar que el mock fue llamado con los argumentos correctos
+        mock_agent.assert_called_once_with(
+            "Hola, necesito ayuda",
+            123
+        )
 
     def test_admin_chats_endpoint(self):
         """Prueba el endpoint GET /admin/chats (debe retornar 404 si no está implementado)"""
