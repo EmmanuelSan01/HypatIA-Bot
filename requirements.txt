@@ -202,14 +202,11 @@ pytest-tornasync==0.6.0.post2
 pytest-trio==0.8.0
 pytest-twisted==1.14.3
 python-dateutil==2.9.0.post0
-<<<<<<< HEAD
 python-decouple==3.8
 python-dotenv==1.1.1
 python-magic==0.4.27
 python-multipart==0.0.20
 pyttsx3==2.99
-=======
->>>>>>> 8d2fc9ecdc8d1e7c4b79564bf90b4ca644c84fe2
 pytz==2025.2
 PyYAML==6.0.2
 qdrant-client==1.15.0
