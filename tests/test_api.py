@@ -23,6 +23,33 @@ class TestAPIEndpoints:
         assert "status" in data
         assert data["status"] == "healthy"
     
+    @patch('app.services.agent.TaekwondoAgent.process_message')
+    def test_chat_endpoint_valid_message(self, mock_agent):
+        """Prueba el endpoint POST /chat con mensaje válido"""
+        # Configurar mock del agente
+        mock_agent.return_value = "Hola! Soy BaekhoBot, tu especialista en productos de Taekwondo. ¿En qué puedo ayudarte hoy?"
+        
+        # Datos de prueba
+        test_message = {
+            "message": "Hola, ¿cómo estás?"
+        }
+        
+        # Realizar solicitud POST al endpoint de chat
+        response = client.post("/chats/message", json=test_message)
+        
+        # Verificar código de estado
+        assert response.status_code == 200
+        
+        # Verificar estructura de respuesta
+        data = response.json()
+        assert "status" in data
+        assert "message" in data
+        assert "data" in data
+        assert "reply" in data["data"]
+        
+        # Verificar que el agente fue llamado con el mensaje correcto
+        mock_agent.assert_called_once()
+    
     @patch('app.controllers.telegram.TelegramController.process_message')
     @patch('app.controllers.telegram.TelegramController._send_telegram_message')
     def test_telegram_webhook_endpoint(self, mock_send_message, mock_process_message):
@@ -63,6 +90,53 @@ class TestAPIEndpoints:
         except json.JSONDecodeError:
             pytest.fail("La respuesta no es JSON válido")
     
+    def test_admin_chats_endpoint(self):
+        """Prueba el endpoint GET /admin/chats (debe retornar 404 si no está implementado)"""
+        # Realizar solicitud GET al endpoint de admin chats
+        response = client.get("/admin/chats")
+        
+        # Verificar que retorna 404 (Not Found) ya que no está implementado
+        assert response.status_code == 404
+    
+    def test_admin_chat_by_id_endpoint(self):
+        """Prueba el endpoint GET /admin/chats/{id} (debe retornar 404 si no está implementado)"""
+        # Realizar solicitud GET al endpoint de admin chat específico
+        response = client.get("/admin/chats/1")
+        
+        # Verificar que retorna 404 (Not Found) ya que no está implementado
+        assert response.status_code == 404
+    
+    @patch('app.services.agent.TaekwondoAgent.process_message')
+    def test_chat_endpoint_empty_message(self, mock_agent):
+        """Prueba el endpoint POST /chat con mensaje vacío"""
+        # Configurar mock del agente para manejar mensaje vacío
+        mock_agent.return_value = "Por favor, envía un mensaje válido."
+        
+        # Datos de prueba con mensaje vacío
+        test_message = {
+            "message": ""
+        }
+        
+        # Realizar solicitud POST al endpoint de chat
+        response = client.post("/chats/message", json=test_message)
+        
+        # Verificar código de estado (puede ser 400 o 200 dependiendo de la validación)
+        assert response.status_code in [200, 400]
+    
+    @patch('app.services.agent.TaekwondoAgent.process_message')
+    def test_chat_endpoint_missing_message(self, mock_agent):
+        """Prueba el endpoint POST /chat sin campo message"""
+        # Datos de prueba sin campo message
+        test_message = {
+            "user_id": 1
+        }
+        
+        # Realizar solicitud POST al endpoint de chat
+        response = client.post("/chats/message", json=test_message)
+        
+        # Verificar que retorna error de validación
+        assert response.status_code == 422  # Unprocessable Entity
+    
     def test_root_endpoint(self):
         """Prueba el endpoint GET / (endpoint raíz)"""
         # Realizar solicitud GET al endpoint raíz
@@ -75,6 +149,30 @@ class TestAPIEndpoints:
         data = response.json()
         assert "message" in data
         assert "status" in data
+    
+    @patch('app.services.agent.TaekwondoAgent.process_message')
+    def test_chat_endpoint_with_user_id(self, mock_agent):
+        """Prueba el endpoint POST /chat con user_id"""
+        # Configurar mock del agente
+        mock_agent.return_value = "Respuesta personalizada para el usuario."
+        
+        # Datos de prueba con user_id
+        test_message = {
+            "message": "Hola, necesito ayuda",
+            "user_id": 123
+        }
+        
+        # Realizar solicitud POST al endpoint de chat
+        response = client.post("/chats/message", json=test_message)
+        
+        # Verificar código de estado
+        assert response.status_code == 200
+        
+        # Verificar estructura de respuesta
+        data = response.json()
+        assert "status" in data
+        assert "data" in data
+        assert "reply" in data["data"]
     
     def test_telegram_webhook_invalid_payload(self):
         """Prueba el endpoint POST /telegram/webhook con payload inválido"""

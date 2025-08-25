@@ -19,7 +19,7 @@ class ChatController:
             
             # Store conversation in database if user_id provided
             if user_id:
-                self._store_conversation(user_id, message, response.get("reply", ""))
+                await self._store_conversation(user_id, message, response.get("reply", ""))
             
             return {
                 "status": "success",
