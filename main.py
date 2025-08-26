@@ -7,8 +7,7 @@ from app.routes.categoria.CategoriaRoutes import router as categoria_router
 from app.routes.producto.ProductoRoutes import router as producto_router
 from app.routes.promocion.PromocionRoutes import router as promocion_router
 from app.routes.usuario.UsuarioRoutes import router as usuario_router
-from app.routes.chat.ChatRoutes import router as chat_router
-from app.routes.chat.ChatRoutes import admin_router as chat_admin_router
+from app.routes.chat.ChatRoutes import router as chat_router, admin_router as chat_admin_router, messages_router
 from app.routes.ingest.IngestRoutes import router as ingest_router
 from app.routes.telegram.TelegramRoutes import telegram_router
 
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="SportBot Backend API with RAG capabilities and complete CRUD operations",
+    description="SportBot Backend API with RAG capabilities, complete CRUD operations, and persistent chat system",
     debug=settings.DEBUG
 )
 
@@ -45,6 +44,7 @@ app.include_router(promocion_router, prefix="/api/v1")
 app.include_router(usuario_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(chat_admin_router, prefix="/api/v1")
+app.include_router(messages_router, prefix="/api/v1")  # Nueva ruta para mensajes
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(telegram_router)
 
@@ -60,12 +60,14 @@ async def startup_event():
         qdrant_service.create_collection_if_not_exists()
         logger.info("Qdrant collection initialized successfully")
         
-        # Optional: Perform initial data synchronization
-        # Uncomment the following lines if you want automatic sync on startup
-        # logger.info("Starting initial data synchronization...")
-        # data_sync = DataSyncService()
-        # sync_result = await data_sync.sync_all_data()
-        # logger.info(f"Initial sync completed: {sync_result['synced_count']} documents")
+        logger.info("Starting initial data synchronization...")
+        data_sync = DataSyncService()
+        sync_result = await data_sync.sync_all_data()
+        
+        if sync_result['status'] == 'success':
+            logger.info(f"✅ Initial sync completed: {sync_result['synced_count']} documents")
+        else:
+            logger.error(f"❌ Sync failed: {sync_result['message']}")
         
         logger.info("RAG initialization completed successfully")
         
@@ -78,10 +80,17 @@ async def startup_event():
 def read_root():
     """Root endpoint"""
     return {
-        "message": "SportBot Backend API with RAG",
+        "message": "SportBot Backend API with RAG and Persistent Chat",
         "version": settings.VERSION,
         "status": "running",
-        "features": ["CRUD Operations", "RAG Chat", "Data Synchronization"]
+        "features": [
+            "CRUD Operations", 
+            "RAG Chat", 
+            "Data Synchronization",
+            "Persistent Chat System",
+            "Message History",
+            "Telegram Integration"
+        ]
     }
 
 @app.get("/health")
@@ -105,8 +114,6 @@ async def rag_status():
             "error": str(e)
         }
 
-
-
 @app.get("/api/v1/assistant")
 async def get_assistant_info():
     """Información del asistente comercial"""
@@ -116,7 +123,10 @@ async def get_assistant_info():
         "capabilities": [
             "product_recommendations",
             "customer_support",
-            "sales_analytics"
+            "sales_analytics",
+            "persistent_conversations",
+            "chat_history",
+            "message_management"
         ]
     }
 
@@ -192,6 +202,36 @@ async def delete_webhook():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ Error: {str(e)}")
 
+@app.post("/api/v1/sync-data")
+async def manual_sync():
+    """Endpoint para sincronización manual de datos"""
+    try:
+        logger.info("Manual data synchronization requested")
+        data_sync = DataSyncService()
+        sync_result = await data_sync.sync_all_data()
+        return sync_result
+    except Exception as e:
+        logger.error(f"Error in manual sync: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Error en sincronización manual: {str(e)}",
+            "synced_count": 0
+        }
+
+@app.get("/api/v1/sync-status")
+async def get_sync_status():
+    """Obtener estado actual de la sincronización"""
+    try:
+        data_sync = DataSyncService()
+        status = await data_sync.get_sync_status()
+        return status
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error obteniendo estado: {str(e)}",
+            "data": None
+        }
+
 from fastapi.responses import JSONResponse
 
 @app.exception_handler(Exception)
@@ -204,9 +244,15 @@ async def global_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    # Obtener puerto y host de variables de entorno (para Render) o usar valores por defecto
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8000,
+        host=host,
+        port=port,
         reload=settings.DEBUG
     )

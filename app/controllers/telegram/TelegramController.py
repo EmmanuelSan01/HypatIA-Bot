@@ -1,5 +1,3 @@
-# Procesar el mensaje recibido y enviarlo al LLM.
-
 import asyncio
 import logging
 from typing import Optional
@@ -12,24 +10,29 @@ from app.models.telegram.TelegramModel import (
     TelegramMessage,
     ChatSession
 )
-from app.services.agent import TaekwondoAgent
+from app.controllers.chat.ChatController import ChatController
+from app.controllers.usuario.UsuarioController import UsuarioController
+from app.models.usuario.UsuarioModel import UsuarioCreate
 from app.config import Config
 
 # Configurar logger
 logger = logging.getLogger(__name__)
 
 class TelegramController:
-    
-    # Controlador para manejar la lógica de interacción con Telegram y el LLM
-    
+    """
+    Controlador para manejar la lógica de interacción con Telegram y el LLM
+    con persistencia completa en base de datos
+    """
     
     def __init__(self):
         self.bot_token = Config.TELEGRAM_BOT_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.bot_token}"
-        self.agent = TaekwondoAgent()
-        self.active_sessions = {}  
+        self.chat_controller = ChatController()
+        self.usuario_controller = UsuarioController()
+        self.active_sessions = {}  # Cache temporal para sesiones activas
         
     async def process_message(self, webhook_data: TelegramWebhookRequest) -> None:
+        """Procesa mensajes de Telegram con persistencia completa"""
         try:
             # Extraer el mensaje (puede ser mensaje nuevo o editado)
             message = webhook_data.message or webhook_data.edited_message
@@ -48,36 +51,81 @@ class TelegramController:
             
             logger.info(f"Procesando mensaje de {user.first_name} ({user.id}): {message.text}")
             
-            # Crear o actualizar sesión de chat
-            session = await self._get_or_create_session(user, chat)
+            # Crear o obtener usuario en la base de datos
+            usuario_id = await self._get_or_create_usuario(user)
             
-            # Procesar mensaje con el LLM
-            response_text = await self._process_with_llm(message.text, session)
+            # Procesar mensaje con el ChatController que maneja la persistencia
+            response_result = await self.chat_controller.process_message(
+                message=message.text,
+                user_id=usuario_id,
+                chat_external_id=f"telegram_{chat.id}"
+            )
+            
+            # Extraer la respuesta del bot
+            if response_result["status"] == "success":
+                response_text = response_result["data"]["reply"]
+            else:
+                response_text = "🤖 Disculpa, tuve un problema procesando tu mensaje. ¿Podrías intentar de nuevo?"
             
             # Enviar respuesta a Telegram
             await self._send_telegram_message(chat.id, response_text, message.message_id)
             
-            # Actualizar sesión
-            await self._update_session(session)
+            # Actualizar sesión temporal (opcional, para cache)
+            await self._update_session_cache(user, chat)
             
-            # Registrar interacción en la base de datos
-            await self._log_interaction(session, message.text, response_text)
+            logger.info(f"Mensaje procesado exitosamente para usuario {user.id}")
             
         except Exception as e:
             logger.error(f"Error procesando mensaje: {str(e)}")
             # Enviar mensaje de error al usuario
-            if 'message' in locals() and message:
+            if 'message' in locals() and message and message.chat:
                 await self._send_error_message(message.chat.id)
     
-    async def _get_or_create_session(self, user, chat) -> ChatSession:
-        
-        # Obtiene o crea una sesión de chat para el usuario
-        
+    async def _get_or_create_usuario(self, telegram_user) -> int:
+        """Obtiene o crea un usuario en la base de datos"""
+        try:
+            # Buscar usuario existente por nombre (en un caso real usarías un campo telegram_id)
+            usuarios = self.usuario_controller.get_all_usuarios()
+            
+            # Buscar por nombre completo como identificador temporal
+            full_name = f"{telegram_user.first_name}"
+            if telegram_user.last_name:
+                full_name += f" {telegram_user.last_name}"
+            
+            # Buscar usuario existente
+            existing_user = None
+            for usuario in usuarios:
+                if usuario.nombre == full_name:
+                    existing_user = usuario
+                    break
+            
+            if existing_user:
+                return existing_user.id
+            
+            # Crear nuevo usuario
+            new_user = UsuarioCreate(
+                nombre=full_name,
+                telefono=telegram_user.username if telegram_user.username else None
+            )
+            
+            created_user = self.usuario_controller.create_usuario(new_user)
+            logger.info(f"Usuario creado: {created_user.nombre} (ID: {created_user.id})")
+            
+            return created_user.id
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo/creando usuario: {str(e)}")
+            # En caso de error, retornar un ID de usuario por defecto o crear uno genérico
+            raise
+    
+    async def _update_session_cache(self, user, chat) -> None:
+        """Actualiza el cache de sesiones activas"""
         session_key = f"{user.id}_{chat.id}"
         
         if session_key in self.active_sessions:
             session = self.active_sessions[session_key]
             session.last_activity = datetime.now()
+            session.message_count += 1
         else:
             session = ChatSession(
                 user_id=user.id,
@@ -87,67 +135,50 @@ class TelegramController:
                 last_name=user.last_name
             )
             self.active_sessions[session_key] = session
-            
-        return session
-    
-    async def _process_with_llm(self, message_text: str, session: ChatSession) -> str:
-    
-        try:
-            # Definir user_info usando datos de la sesión
-            user_info = {
-                "user_id": session.user_id,
-                "chat_id": session.chat_id,
-                "username": session.username,
-                "first_name": session.first_name,
-                "last_name": session.last_name
-            }
-
-            # Procesar con el agente de Taekwondo (sin Qdrant por ahora)
-            response = await self.agent.process_message(
-                message_text, 
-                user_info=user_info,
-                context=None,       # Sin contexto vectorial por simplicidad
-                chat_history=[]     # Sin historial por simplicidad
-            )
-        
-            return response
-        
-        except asyncio.TimeoutError:
-            logger.error("Timeout al procesar mensaje con LLM")
-            return "⏰ Lo siento, la respuesta está tardando más de lo esperado. Por favor, intenta de nuevo."
-            
-        except Exception as e:
-            logger.error(f"Error al procesar con LLM: {str(e)}")
-            return "🤖 Disculpa, tuve un problema procesando tu mensaje. ¿Podrías intentar de nuevo?"
-        
-    async def _get_relevant_context(self, message_text: str) -> Optional[str]:
-        return None
-    
-    async def _get_recent_chat_history(self, session: ChatSession) -> list:
-        
-        # Obtiene el historial reciente de chat para contexto
-        
-        return []
     
     async def _send_telegram_message(self, chat_id: int, text: str, reply_to_message_id: Optional[int] = None) -> bool:
-        
+        """Envía mensaje a Telegram"""
         try:
-            telegram_response = TelegramResponse(
-                chat_id=chat_id,
-                text=text,
-                reply_to_message_id=reply_to_message_id
-            )
-            
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.telegram_api_url}/sendMessage",
-                    json=telegram_response.dict(exclude_none=True),
-                    timeout=30.0
+            # Dividir mensajes largos si es necesario
+            max_length = 4096  # Límite de Telegram
+            if len(text) > max_length:
+                # Enviar en múltiples mensajes
+                messages = []
+                for i in range(0, len(text), max_length):
+                    messages.append(text[i:i + max_length])
+                
+                for i, message_part in enumerate(messages):
+                    telegram_response = TelegramResponse(
+                        chat_id=chat_id,
+                        text=message_part,
+                        reply_to_message_id=reply_to_message_id if i == 0 else None
+                    )
+                    
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(
+                            f"{self.telegram_api_url}/sendMessage",
+                            json=telegram_response.dict(exclude_none=True),
+                            timeout=30.0
+                        )
+                        response.raise_for_status()
+            else:
+                # Mensaje único
+                telegram_response = TelegramResponse(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_to_message_id=reply_to_message_id
                 )
                 
-                response.raise_for_status()
-                logger.info(f"Mensaje enviado exitosamente a chat {chat_id}")
-                return True
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        f"{self.telegram_api_url}/sendMessage",
+                        json=telegram_response.dict(exclude_none=True),
+                        timeout=30.0
+                    )
+                    response.raise_for_status()
+            
+            logger.info(f"Mensaje enviado exitosamente a chat {chat_id}")
+            return True
                 
         except httpx.TimeoutException:
             logger.error(f"Timeout enviando mensaje a chat {chat_id}")
@@ -157,34 +188,15 @@ class TelegramController:
             return False
     
     async def _send_error_message(self, chat_id: int) -> None:
-        
-        # Envía un mensaje de error genérico al usuario
-        
-        error_message = "🚫 Ups! Algo salió mal. Nuestro equipo técnico ya está trabajando en solucionarlo. Por favor, intenta de nuevo en unos minutos."
+        """Envía un mensaje de error genérico al usuario"""
+        error_message = (
+            "🚫 Ups! Algo salió mal. Nuestro equipo técnico ya está trabajando en solucionarlo. "
+            "Por favor, intenta de nuevo en unos minutos."
+        )
         await self._send_telegram_message(chat_id, error_message)
     
-    async def _update_session(self, session: ChatSession) -> None:
-        
-        # Actualiza la información de la sesión
-        
-        session.last_activity = datetime.now()
-        session.message_count += 1
-    
-    async def _log_interaction(self, session: ChatSession, user_message: str, bot_response: str) -> None:
-        
-        # Registra la interacción en la base de datos para logs y análisis
-        
-        try:
-            # Aquí implementarías la lógica para guardar en la BD
-            # usando las tablas chat y mensaje del DDL proporcionado
-            logger.info(f"Interacción registrada - Usuario: {session.user_id}, Mensajes: {session.message_count}")
-        except Exception as e:
-            logger.error(f"Error registrando interacción: {str(e)}")
-    
     async def cleanup_inactive_sessions(self, max_idle_minutes: int = 30) -> None:
-        
-        # Limpia sesiones inactivas para liberar memoria
-        
+        """Limpia sesiones inactivas para liberar memoria"""
         current_time = datetime.now()
         inactive_sessions = []
         
@@ -198,3 +210,45 @@ class TelegramController:
             
         if inactive_sessions:
             logger.info(f"Limpiadas {len(inactive_sessions)} sesiones inactivas")
+    
+    async def get_user_chat_history(self, telegram_user_id: int, limit: int = 10) -> dict:
+        """Obtiene el historial de chat de un usuario de Telegram"""
+        try:
+            # Buscar usuario por telegram_user_id (necesitarías un campo adicional en la BD)
+            # Por ahora, usando una búsqueda simple
+            usuarios = self.usuario_controller.get_all_usuarios()
+            
+            # Aquí deberías tener una mejor forma de mapear usuarios de Telegram
+            user_chats = []
+            for usuario in usuarios:
+                chats = self.chat_controller.get_chats_by_usuario(usuario.id)
+                for chat in chats:
+                    if f"telegram_" in chat.chatId:
+                        history = self.chat_controller.get_chat_history(chat.id, limit)
+                        user_chats.append({
+                            "chat_id": chat.id,
+                            "external_chat_id": chat.chatId,
+                            "last_message": chat.ultimoMensaje,
+                            "total_messages": chat.totalMensajes,
+                            "recent_history": [
+                                {
+                                    "type": msg.tipo,
+                                    "content": msg.contenido,
+                                    "timestamp": msg.fechaEnvio.isoformat()
+                                }
+                                for msg in history
+                            ]
+                        })
+            
+            return {
+                "telegram_user_id": telegram_user_id,
+                "chats": user_chats
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo historial: {str(e)}")
+            return {
+                "telegram_user_id": telegram_user_id,
+                "chats": [],
+                "error": str(e)
+            }
