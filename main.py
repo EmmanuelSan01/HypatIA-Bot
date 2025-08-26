@@ -7,8 +7,7 @@ from app.routes.categoria.CategoriaRoutes import router as categoria_router
 from app.routes.producto.ProductoRoutes import router as producto_router
 from app.routes.promocion.PromocionRoutes import router as promocion_router
 from app.routes.usuario.UsuarioRoutes import router as usuario_router
-from app.routes.chat.ChatRoutes import router as chat_router
-from app.routes.chat.ChatRoutes import admin_router as chat_admin_router
+from app.routes.chat.ChatRoutes import router as chat_router, admin_router as chat_admin_router, messages_router
 from app.routes.ingest.IngestRoutes import router as ingest_router
 from app.routes.telegram.TelegramRoutes import telegram_router
 
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="SportBot Backend API with RAG capabilities and complete CRUD operations",
+    description="SportBot Backend API with RAG capabilities, complete CRUD operations, and persistent chat system",
     debug=settings.DEBUG
 )
 
@@ -45,6 +44,7 @@ app.include_router(promocion_router, prefix="/api/v1")
 app.include_router(usuario_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(chat_admin_router, prefix="/api/v1")
+app.include_router(messages_router, prefix="/api/v1")  # Nueva ruta para mensajes
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(telegram_router)
 
@@ -78,10 +78,17 @@ async def startup_event():
 def read_root():
     """Root endpoint"""
     return {
-        "message": "SportBot Backend API with RAG",
+        "message": "SportBot Backend API with RAG and Persistent Chat",
         "version": settings.VERSION,
         "status": "running",
-        "features": ["CRUD Operations", "RAG Chat", "Data Synchronization"]
+        "features": [
+            "CRUD Operations", 
+            "RAG Chat", 
+            "Data Synchronization",
+            "Persistent Chat System",
+            "Message History",
+            "Telegram Integration"
+        ]
     }
 
 @app.get("/health")
@@ -105,8 +112,6 @@ async def rag_status():
             "error": str(e)
         }
 
-
-
 @app.get("/api/v1/assistant")
 async def get_assistant_info():
     """Información del asistente comercial"""
@@ -116,7 +121,10 @@ async def get_assistant_info():
         "capabilities": [
             "product_recommendations",
             "customer_support",
-            "sales_analytics"
+            "sales_analytics",
+            "persistent_conversations",
+            "chat_history",
+            "message_management"
         ]
     }
 
