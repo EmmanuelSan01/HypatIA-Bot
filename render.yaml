@@ -11,3 +11,4 @@ services:
         value: 8000
       - key: HOST
         value: 0.0.0.0
+    autoDeploy: true
