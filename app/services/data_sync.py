@@ -372,7 +372,6 @@ class DataSyncService:
                 LEFT JOIN producto p ON pp.productoId = p.id
                 WHERE pr.fechaInicio <= CURDATE() 
                     AND pr.fechaFin >= CURDATE()
-                    AND pr.fechaActualizacion >= %s
                 GROUP BY pr.id
                 """
                 cursor.execute(sql, (since,))
