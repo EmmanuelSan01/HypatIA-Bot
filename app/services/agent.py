@@ -8,7 +8,7 @@ from app.services.embedding import EmbeddingService
 logger = logging.getLogger(__name__)
 
 # ==============================
-# Agente RAG Principal (usando KB real)
+# Agente RAG Principal
 # ==============================
 
 class AgentService:
