@@ -87,10 +87,16 @@ class PromotionSearchTool(lr.ToolMessage):
         try:
             qdrant_service = QdrantService()
             
-            # Buscar promociones activas
-            filters = {"type": "promocion", "activa": True}
+            from app.services.embedding import EmbeddingService
+            embedding_service = EmbeddingService()
+            
+            # Generar embedding para consulta de promociones
+            promotion_query = "promociones descuentos ofertas especiales productos en oferta"
+            query_embedding = embedding_service.encode_query(promotion_query)
+            
+            filters = {"tipo": "promocion", "activa": True}
             results = qdrant_service.search_similar(
-                [0.0] * 384,  # Vector neutro para obtener todas las promociones
+                query_embedding,  # Usar embedding real en lugar de vector cero
                 limit=10,
                 filters=filters
             )
@@ -98,17 +104,49 @@ class PromotionSearchTool(lr.ToolMessage):
             if not results:
                 return "No hay promociones activas en este momento."
             
-            promotions = []
+            promotions_info = []
             for result in results:
                 payload = result.get("payload", {})
-                promotions.append({
-                    "descripcion": payload.get("descripcion", "N/A"),
+                
+                # Extraer información completa de la promoción
+                promocion_info = {
+                    "descripcion": payload.get("descripcion", "Promoción sin descripción"),
                     "descuento": payload.get("descuento", 0),
-                    "productos": payload.get("productos_nombres", "N/A"),
-                    "fecha_fin": payload.get("fecha_fin", "N/A")
-                })
+                    "fecha_fin": payload.get("fecha_fin", "Fecha no especificada"),
+                    "total_productos": payload.get("total_productos", 0)
+                }
+                
+                # Extraer información detallada de productos desde metadata
+                metadata = payload.get("metadata", {})
+                productos_nombres = metadata.get("productos_nombres", "") or payload.get("productos_nombres", "")
+                productos_detalles = metadata.get("productos_detalles", "") or payload.get("productos_detalles", "")
+                
+                if productos_nombres and productos_nombres.strip():
+                    promocion_info["productos_incluidos"] = productos_nombres
+                else:
+                    promocion_info["productos_incluidos"] = "No se especifican productos"
+                
+                if productos_detalles and productos_detalles.strip():
+                    promocion_info["productos_con_precios"] = productos_detalles
+                else:
+                    promocion_info["productos_con_precios"] = "Precios no disponibles"
+                
+                promotions_info.append(promocion_info)
             
-            return str(promotions)
+            # Formatear respuesta de manera legible
+            formatted_response = "🎉 PROMOCIONES ACTIVAS:\n\n"
+            for i, promo in enumerate(promotions_info, 1):
+                formatted_response += f"📍 PROMOCIÓN {i}:\n"
+                formatted_response += f"   • Descripción: {promo['descripcion']}\n"
+                formatted_response += f"   • Descuento: {promo['descuento']}%\n"
+                formatted_response += f"   • Válida hasta: {promo['fecha_fin']}\n"
+                formatted_response += f"   • Total productos: {promo['total_productos']}\n"
+                formatted_response += f"   • Productos incluidos: {promo['productos_incluidos']}\n"
+                if promo['productos_con_precios'] != "Precios no disponibles":
+                    formatted_response += f"   • Detalles con precios: {promo['productos_con_precios']}\n"
+                formatted_response += "\n"
+            
+            return formatted_response
             
         except Exception as e:
             logger.error(f"Error in PromotionSearchTool: {str(e)}")
