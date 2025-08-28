@@ -36,9 +36,6 @@ class Settings:
     QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
     QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection")
     
-    # ===== CONFIGURACIÓN DE REDIS =====
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
-    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     
     # ===== CONFIGURACIÓN DE OPENAI/LLM =====
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -101,13 +98,6 @@ class Settings:
             "collection": cls.QDRANT_COLLECTION_NAME
         }
     
-    @classmethod
-    def get_redis_config(cls) -> dict:
-        """Obtiene la configuración de Redis"""
-        return {
-            "host": cls.REDIS_HOST,
-            "port": cls.REDIS_PORT
-        }
     
     @classmethod
     def is_docker_environment(cls) -> bool:
@@ -145,7 +135,3 @@ def get_database_url() -> str:
 def get_qdrant_config() -> dict:
     """Obtiene la configuración de Qdrant"""
     return settings.get_qdrant_config()
-
-def get_redis_config() -> dict:
-    """Obtiene la configuración de Redis"""
-    return settings.get_redis_config()

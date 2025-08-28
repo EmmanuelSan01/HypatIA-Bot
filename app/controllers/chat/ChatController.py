@@ -4,23 +4,32 @@ from datetime import datetime
 from app.database import get_sync_connection
 from app.models.chat.ChatModel import ChatCreate, ChatUpdate, ChatResponse
 from app.models.mensaje.MensajeModel import MensajeCreate, MensajeResponse
-from app.services.agent import AgentService
+from app.services.langroid_service import LangroidAgentService, BaekhoLangroidAgent
 from app.services.data_sync import DataSyncService
 
 class ChatController:
     
     def __init__(self):
-        self.agent_service = AgentService()
+        self.agent_service = BaekhoLangroidAgent()
+        self.langroid_service = LangroidAgentService()
         self.data_sync_service = DataSyncService()
     
     async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None) -> Dict:
-        """Process message using RAG and persist conversation"""
+        """Process message using Langroid Multi-Agent System and persist conversation"""
         try:
-            # Use RAG to process the query
-            response = await self.agent_service.process_query(message, user_id)
+            response = await self.langroid_service.process_message(
+                message=message, 
+                user_id=user_id,
+                persist_conversation=True
+            )
             
-            # Store conversation in database if user_id provided
-            if user_id:
+            # Extract response data from Langroid format
+            bot_reply = response.get("reply", "")
+            chat_id = response.get("chat_id")
+            conversation_stats = response.get("conversation_stats", {})
+            
+            # Store conversation in database if user_id provided and not already persisted
+            if user_id and not chat_id:
                 chat_record = await self._get_or_create_chat(user_id, chat_external_id)
                 
                 # Store user message
@@ -31,7 +40,6 @@ class ChatController:
                 )
                 
                 # Store bot response
-                bot_reply = response.get("reply", "")
                 await self._store_message(
                     chat_id=chat_record['id'],
                     tipo='bot',
@@ -40,16 +48,20 @@ class ChatController:
                 
                 # Update chat summary
                 await self._update_chat_summary(chat_record['id'], message)
+                chat_id = chat_record['id']
             
             return {
-                "status": "success",
-                "message": "Consulta procesada exitosamente",
+                "status": response.get("status", "success"),
+                "message": response.get("message", "Consulta procesada exitosamente"),
                 "data": {
-                    "reply": response.get("reply", ""),
-                    "sources": response.get("sources", []),
-                    "relevance_score": response.get("relevance_score", 0.0),
-                    "context_used": response.get("context_used", []),
-                    "chat_id": chat_record['id'] if user_id else None
+                    "reply": bot_reply,
+                    "sources": [],  # Langroid handles sources internally
+                    "relevance_score": 1.0,  # Langroid provides quality through multi-agent orchestration
+                    "context_used": [],
+                    "chat_id": chat_id,
+                    "agent_used": response.get("agent_used", "langroid_multi_agent"),
+                    "conversation_stats": conversation_stats,
+                    "timestamp": response.get("timestamp")
                 }
             }
             
@@ -60,10 +72,34 @@ class ChatController:
                 "data": {
                     "reply": "Lo siento, ocurrió un error procesando tu consulta. Por favor intenta nuevamente.",
                     "sources": [],
-                    "relevance_score": 0.0
+                    "relevance_score": 0.0,
+                    "agent_used": "error",
+                    "error_details": str(e)
                 }
             }
     
+    async def get_conversation_analytics(self, chat_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict:
+        """Get conversation analytics from Langroid system"""
+        try:
+            return await self.langroid_service.get_conversation_analytics(chat_id, user_id)
+        except Exception as e:
+            return {"error": f"Error obteniendo analytics: {str(e)}"}
+    
+    async def reset_conversation_context(self, user_id: Optional[int] = None):
+        """Reset conversation context in Langroid system"""
+        try:
+            await self.langroid_service.reset_conversation_context(user_id)
+        except Exception as e:
+            print(f"Error resetting context: {str(e)}")
+    
+    def get_agent_system_info(self) -> Dict:
+        """Get information about the current agent system"""
+        return self.langroid_service.get_agent_info()
+    
+    def is_agent_system_available(self) -> bool:
+        """Check if the Langroid agent system is available"""
+        return self.langroid_service.is_available()
+
     async def _get_or_create_chat(self, user_id: int, chat_external_id: Optional[str] = None) -> Dict:
         """Get existing chat or create new one for user"""
         connection = get_sync_connection()
@@ -113,7 +149,7 @@ class ChatController:
         try:
             with connection.cursor() as cursor:
                 sql = """
-                INSERT INTO mensaje (chatId, tipo, contenido, fechaEnvio) 
+                INSERT INTO mensaje (chatId, tipo, contenido, fechaCreacion) 
                 VALUES (%s, %s, %s, %s)
                 """
                 cursor.execute(sql, (chat_id, tipo, contenido, datetime.now()))
@@ -147,7 +183,7 @@ class ChatController:
                 sql = """
                 SELECT * FROM mensaje 
                 WHERE chatId = %s 
-                ORDER BY fechaEnvio ASC 
+                ORDER BY fechaCreacion ASC 
                 LIMIT %s
                 """
                 cursor.execute(sql, (chat_id, limit))
@@ -164,8 +200,8 @@ class ChatController:
                 sql = """
                 SELECT * FROM mensaje 
                 WHERE chatId = %s 
-                AND fechaEnvio >= DATE_SUB(NOW(), INTERVAL %s MINUTE)
-                ORDER BY fechaEnvio ASC
+                AND fechaCreacion >= DATE_SUB(NOW(), INTERVAL %s MINUTE)
+                ORDER BY fechaCreacion ASC
                 """
                 cursor.execute(sql, (chat_id, minutes))
                 messages = cursor.fetchall()

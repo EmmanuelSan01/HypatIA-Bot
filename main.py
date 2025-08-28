@@ -13,6 +13,7 @@ from app.routes.telegram.TelegramRoutes import telegram_router
 
 from app.services.qdrant import QdrantService
 from app.services.data_sync import DataSyncService
+from app.services.langroid_service import LangroidAgentService
 import asyncio
 import logging
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="SportBot Backend API with RAG capabilities, complete CRUD operations, and persistent chat system",
+    description="SportBot Backend API with Langroid Multi-Agent System, RAG capabilities, complete CRUD operations, and persistent chat system",
     debug=settings.DEBUG
 )
 
@@ -48,17 +49,28 @@ app.include_router(messages_router, prefix="/api/v1")  # Nueva ruta para mensaje
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(telegram_router)
 
+langroid_service = None
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize RAG components on application startup"""
+    """Initialize RAG components and Langroid Multi-Agent System on application startup"""
+    global langroid_service
     try:
-        logger.info("Initializing RAG components...")
+        logger.info("Initializing RAG components and Langroid Multi-Agent System...")
         
         # Initialize Qdrant service
         qdrant_service = QdrantService()
         qdrant_service.create_collection_if_not_exists()
         logger.info("Qdrant collection initialized successfully")
+        
+        logger.info("Initializing Langroid Multi-Agent System...")
+        langroid_service = LangroidAgentService()
+        if langroid_service.is_available():
+            logger.info("✅ Langroid Multi-Agent System initialized successfully")
+            agent_info = langroid_service.get_agent_info()
+            logger.info(f"Available agents: {list(agent_info['agents'].keys())}")
+        else:
+            logger.warning("⚠️ Langroid system initialized but agents not available")
         
         logger.info("Starting initial data synchronization...")
         data_sync = DataSyncService()
@@ -69,28 +81,32 @@ async def startup_event():
         else:
             logger.error(f"❌ Sync failed: {sync_result['message']}")
         
-        logger.info("RAG initialization completed successfully")
+        logger.info("RAG and Langroid initialization completed successfully")
         
     except Exception as e:
-        logger.error(f"Error during RAG initialization: {str(e)}")
+        logger.error(f"Error during initialization: {str(e)}")
         # Don't fail startup, but log the error
-        logger.warning("Application started without RAG capabilities")
+        logger.warning("Application started with limited capabilities")
 
 @app.get("/")
 def read_root():
     """Root endpoint"""
     return {
-        "message": "SportBot Backend API with RAG and Persistent Chat",
+        "message": "SportBot Backend API with Langroid Multi-Agent System",
         "version": settings.VERSION,
         "status": "running",
         "features": [
             "CRUD Operations", 
-            "RAG Chat", 
+            "Langroid Multi-Agent Chat System",
+            "RAG with Semantic Search", 
             "Data Synchronization",
             "Persistent Chat System",
             "Message History",
-            "Telegram Integration"
-        ]
+            "Telegram Integration",
+            "Conversation Analytics",
+            "Sales Recommendations"
+        ],
+        "agent_system": "Langroid Multi-Agent Framework"
     }
 
 @app.get("/health")
@@ -114,21 +130,102 @@ async def rag_status():
             "error": str(e)
         }
 
+@app.get("/langroid-status")
+async def langroid_status():
+    """Check Langroid Multi-Agent System status"""
+    global langroid_service
+    try:
+        if langroid_service:
+            agent_info = langroid_service.get_agent_info()
+            return {
+                "langroid_enabled": True,
+                "agents_available": langroid_service.is_available(),
+                "system_info": agent_info
+            }
+        else:
+            return {
+                "langroid_enabled": False,
+                "error": "Langroid service not initialized"
+            }
+    except Exception as e:
+        return {
+            "langroid_enabled": False,
+            "error": str(e)
+        }
+
 @app.get("/api/v1/assistant")
 async def get_assistant_info():
     """Información del asistente comercial"""
-    return {
-        "name": "SportBot Assistant",
-        "type": "commercial_assistant",
+    global langroid_service
+    base_info = {
+        "name": "BaekhoBot 🥋",
+        "type": "multi_agent_commercial_assistant",
         "capabilities": [
-            "product_recommendations",
-            "customer_support",
-            "sales_analytics",
+            "multi_agent_orchestration",
+            "semantic_product_search",
+            "sales_recommendations", 
+            "conversation_analytics",
             "persistent_conversations",
             "chat_history",
-            "message_management"
+            "message_management",
+            "real_time_knowledge_access"
         ]
     }
+    
+    if langroid_service and langroid_service.is_available():
+        langroid_info = langroid_service.get_agent_info()
+        base_info.update({
+            "framework": langroid_info.get("framework"),
+            "agents": langroid_info.get("agents"),
+            "version": langroid_info.get("version")
+        })
+    
+    return base_info
+
+@app.get("/api/v1/conversation-analytics")
+async def get_conversation_analytics(chat_id: int = None, user_id: int = None):
+    """Get conversation analytics from Langroid system"""
+    global langroid_service
+    try:
+        if langroid_service:
+            analytics = await langroid_service.get_conversation_analytics(chat_id, user_id)
+            return {
+                "status": "success",
+                "data": analytics
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Langroid service not available"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error obteniendo analytics: {str(e)}"
+        }
+
+@app.post("/api/v1/reset-conversation")
+async def reset_conversation_context(user_id: int = None):
+    """Reset conversation context for user"""
+    global langroid_service
+    try:
+        if langroid_service:
+            await langroid_service.reset_conversation_context(user_id)
+            return {
+                "status": "success",
+                "message": f"Contexto de conversación reseteado para usuario {user_id}"
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Langroid service not available"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error reseteando contexto: {str(e)}"
+        }
+
 
 from fastapi import HTTPException
 import requests
