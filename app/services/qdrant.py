@@ -49,11 +49,41 @@ class QdrantService:
                     )
                 )
                 logger.info(f"Created collection: {self.collection_name}")
+                
+                self._create_payload_indexes()
             else:
                 logger.info(f"Collection {self.collection_name} already exists")
+                self._create_payload_indexes()
         except Exception as e:
             logger.error(f"Error creating collection: {str(e)}")
             raise
+    
+    def _create_payload_indexes(self):
+        """Create payload indexes for efficient filtering"""
+        try:
+            # Create indexes for fields we want to filter by
+            indexes_to_create = [
+                ("tipo", models.PayloadSchemaType.KEYWORD),
+                ("activa", models.PayloadSchemaType.BOOL),
+                ("disponible", models.PayloadSchemaType.BOOL),
+                ("categoria_id", models.PayloadSchemaType.INTEGER),
+                ("precio", models.PayloadSchemaType.FLOAT),
+            ]
+            
+            for field_name, field_type in indexes_to_create:
+                try:
+                    self.client.create_payload_index(
+                        collection_name=self.collection_name,
+                        field_name=field_name,
+                        field_schema=field_type
+                    )
+                    logger.info(f"Created index for field: {field_name}")
+                except Exception as e:
+                    # Index might already exist, log but don't fail
+                    logger.debug(f"Index for {field_name} might already exist: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error creating payload indexes: {str(e)}")
         
     def initialize_collection(self):
         """Create collection if it doesn't exist"""
@@ -70,8 +100,8 @@ class QdrantService:
                     )
                 )
                 logger.info(f"Created collection: {self.collection_name}")
-            else:
-                logger.info(f"Collection {self.collection_name} already exists")
+                
+            self._create_payload_indexes()
                 
         except Exception as e:
             logger.error(f"Error initializing collection: {str(e)}")

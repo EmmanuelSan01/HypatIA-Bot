@@ -139,13 +139,19 @@ class TelegramController:
     async def _send_telegram_message(self, chat_id: int, text: str, reply_to_message_id: Optional[int] = None) -> bool:
         """Envía mensaje a Telegram"""
         try:
+            message_text = text
+            if hasattr(text, 'content'):
+                message_text = text.content
+            elif not isinstance(text, str):
+                message_text = str(text)
+            
             # Dividir mensajes largos si es necesario
             max_length = 4096  # Límite de Telegram
-            if len(text) > max_length:
+            if len(message_text) > max_length:
                 # Enviar en múltiples mensajes
                 messages = []
-                for i in range(0, len(text), max_length):
-                    messages.append(text[i:i + max_length])
+                for i in range(0, len(message_text), max_length):
+                    messages.append(message_text[i:i + max_length])
                 
                 for i, message_part in enumerate(messages):
                     telegram_response = TelegramResponse(
@@ -165,7 +171,7 @@ class TelegramController:
                 # Mensaje único
                 telegram_response = TelegramResponse(
                     chat_id=chat_id,
-                    text=text,
+                    text=message_text,
                     reply_to_message_id=reply_to_message_id
                 )
                 
