@@ -54,19 +54,32 @@ class ProductSearchTool(lr.ToolMessage):
             if not results:
                 return "No se encontraron productos que coincidan con tu búsqueda."
             
-            # Formatear resultados
+            # Formatear resultados con disponibilidad corregida
             formatted_results = []
             for result in results:
                 payload = result.get("payload", {})
                 score = result.get("score", 0)
+                
+                # Corregir extracción de disponibilidad
+                disponible_raw = payload.get("disponible", False)
+                stock_num = payload.get("stock", 0)
+                
+                # Determinar disponibilidad real
+                if isinstance(disponible_raw, bool):
+                    disponible_final = disponible_raw
+                elif isinstance(stock_num, (int, float)):
+                    disponible_final = stock_num > 0
+                else:
+                    disponible_final = False
                 
                 formatted_results.append({
                     "nombre": payload.get("nombre", "N/A"),
                     "descripcion": payload.get("descripcion", "N/A"),
                     "precio": payload.get("precio", "N/A"),
                     "categoria": payload.get("categoria", "N/A"),
-                    "disponible": payload.get("disponible", True),
+                    "disponible": disponible_final,  # Usar valor corregido
                     "stock": payload.get("stock", 0),
+                    "promociones_activas": payload.get("promociones_activas", ""),
                     "relevance_score": score
                 })
             
@@ -346,6 +359,13 @@ class MainBaekhoAgent(ChatAgent):
             
             Recomendaciones de ventas:
             {sales_response}
+            
+            INSTRUCCIONES CRÍTICAS PARA DISPONIBILIDAD:
+            - La información de productos incluye el campo 'disponible' que indica si hay stock
+            - Si 'disponible' es True, el producto TIENE STOCK disponible
+            - Si 'disponible' es False, el producto NO TIENE STOCK disponible
+            - Responde con precisión sobre la disponibilidad basándote en este campo booleano
+            - NO asumas que no hay stock si no tienes información clara
             
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.

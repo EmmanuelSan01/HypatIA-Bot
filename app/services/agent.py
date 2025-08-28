@@ -90,10 +90,29 @@ class AgentService:
                 precio = payload.get('precio', 'N/A')
                 categoria = payload.get('categoria', 'N/A')
                 
+                # Corregir extracción de disponibilidad del payload
+                disponible = payload.get('disponible', False)
+                stock_num = payload.get('stock', 0)
+                
+                # Determinar estado de disponibilidad
+                if disponible and isinstance(disponible, bool):
+                    estado_disponibilidad = "✅ Disponible" if disponible else "❌ Sin stock"
+                elif isinstance(stock_num, (int, float)) and stock_num > 0:
+                    estado_disponibilidad = "✅ Disponible"
+                else:
+                    estado_disponibilidad = "❌ Sin stock"
+                
                 context_parts.append(f"- **{nombre}**")
                 context_parts.append(f"  📝 Descripción: {descripcion}")
                 context_parts.append(f"  💰 Precio: ${precio}")
                 context_parts.append(f"  📂 Categoría: {categoria}")
+                context_parts.append(f"  📦 Disponibilidad: {estado_disponibilidad}")
+                
+                # Agregar información de promociones si existe
+                promociones = payload.get('promociones_activas', '')
+                if promociones and promociones.strip():
+                    context_parts.append(f"  🎉 Promociones: {promociones}")
+                
                 context_parts.append("")
 
         if additional_context:
@@ -112,11 +131,14 @@ class AgentService:
         
         INSTRUCCIONES IMPORTANTES:
         - SOLO usa información del contexto proporcionado (datos reales de la base de datos)
-        - Si no tienes información específica, dilo claramente
-        - NO inventes precios, productos o características
+        - La disponibilidad se indica claramente con ✅ Disponible o ❌ Sin stock
+        - Si un producto muestra ✅ Disponible, significa que HAY STOCK disponible
+        - Si un producto muestra ❌ Sin stock, significa que NO HAY STOCK disponible
+        - Responde con precisión sobre la disponibilidad basándote únicamente en estos indicadores
+        - NO inventes precios, productos o características que no estén en el contexto
         - Sé amigable, profesional y conciso
         - Incluye emojis relevantes para hacer la conversación más amena
-        - Si el contexto está vacío, explica que necesitas más información o que no tienes datos sobre esa consulta específica
+        - Si el contexto está vacío, explica que necesitas más información
         
         Tu objetivo es ayudar a los clientes con información REAL y precisa sobre nuestros productos.
         """
@@ -128,6 +150,7 @@ class AgentService:
         {context}
         
         Por favor responde basándote ÚNICAMENTE en la información proporcionada arriba.
+        Presta especial atención a los indicadores de disponibilidad (✅ Disponible / ❌ Sin stock).
         """
 
         try:

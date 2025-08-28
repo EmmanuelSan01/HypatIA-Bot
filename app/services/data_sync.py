@@ -116,6 +116,9 @@ class DataSyncService:
                     
                     doc_id = int(producto['id'])
                     
+                    # Corregir cálculo de disponibilidad basado en stock
+                    disponible = int(producto.get('stock', 0)) > 0
+                    
                     # Store in Qdrant
                     await self.qdrant_service.upsert_document(
                         doc_id=doc_id,
@@ -128,11 +131,11 @@ class DataSyncService:
                             "categoria": producto.get('categoria_nombre', ''),
                             "categoria_id": producto['categoriaId'],
                             "precio": float(producto['precio']) if producto['precio'] else 0.0,
-                            "disponible": producto['stock'] > 0,  # Based on stock availability
+                            "disponible": disponible,  # Usar el valor booleano calculado
                             "descripcion": producto.get('descripcion', ''),
                             "talla": producto.get('talla', ''),
                             "color": producto.get('color', ''),
-                            "stock": producto['stock'],
+                            "stock": int(producto.get('stock', 0)),
                             "promociones_activas": producto.get('promociones_activas', '') or ''
                         }
                     )
@@ -232,6 +235,10 @@ class DataSyncService:
 
     def _create_producto_content(self, producto: Dict) -> str:
         """Create searchable content for producto"""
+        # Calcular disponibilidad basada en stock
+        stock_value = int(producto.get('stock', 0))
+        disponibilidad_texto = 'Sí' if stock_value > 0 else 'No'
+        
         parts = [
             f"Producto: {producto['nombre']}",
             f"Descripción: {producto.get('descripcion', '')}" if producto.get('descripcion') else "",
@@ -239,8 +246,8 @@ class DataSyncService:
             f"Precio: ${producto['precio']}" if producto['precio'] else "",
             f"Talla: {producto.get('talla', '')}" if producto.get('talla') else "",
             f"Color: {producto.get('color', '')}" if producto.get('color') else "",
-            f"Stock: {producto['stock']} unidades" if producto['stock'] else "",
-            f"Disponible: {'Sí' if producto['stock'] > 0 else 'No'}"
+            f"Stock: {stock_value} unidades",
+            f"Disponible: {disponibilidad_texto}"
         ]
         
         if producto.get('promociones_activas'):
@@ -301,6 +308,9 @@ class DataSyncService:
                     
                     doc_id = int(producto['id'])
                     
+                    # Corregir cálculo de disponibilidad basado en stock
+                    disponible = int(producto.get('stock', 0)) > 0
+                    
                     await self.qdrant_service.upsert_document(
                         doc_id=doc_id,
                         content=content,
@@ -312,9 +322,11 @@ class DataSyncService:
                             "categoria": producto.get('categoria_nombre', ''),
                             "categoria_id": producto['categoriaId'],
                             "precio": float(producto['precio']) if producto['precio'] else 0.0,
-                            "disponible": producto['stock'] > 0,
+                            "disponible": disponible,  # Usar el valor booleano calculado
                             "descripcion": producto.get('descripcion', ''),
-                            "stock": producto['stock'],
+                            "talla": producto.get('talla', ''),
+                            "color": producto.get('color', ''),
+                            "stock": int(producto.get('stock', 0)),
                             "promociones_activas": producto.get('promociones_activas', '') or ''
                         }
                     )
