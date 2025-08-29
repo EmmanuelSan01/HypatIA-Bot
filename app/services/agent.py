@@ -90,23 +90,18 @@ class AgentService:
                 precio = payload.get('precio', 'N/A')
                 categoria = payload.get('categoria', 'N/A')
                 
-                # Corregir extracción de disponibilidad del payload
                 disponible = payload.get('disponible', False)
                 stock_num = payload.get('stock', 0)
                 
-                # Determinar estado de disponibilidad
-                if disponible and isinstance(disponible, bool):
-                    estado_disponibilidad = "✅ Disponible" if disponible else "❌ Sin stock"
-                elif isinstance(stock_num, (int, float)) and stock_num > 0:
-                    estado_disponibilidad = "✅ Disponible"
-                else:
-                    estado_disponibilidad = "❌ Sin stock"
+                # Usar directamente el valor booleano de disponible del payload
+                estado_disponibilidad = "✅ Disponible" if disponible else "❌ Sin stock"
                 
                 context_parts.append(f"- **{nombre}**")
                 context_parts.append(f"  📝 Descripción: {descripcion}")
                 context_parts.append(f"  💰 Precio: ${precio}")
                 context_parts.append(f"  📂 Categoría: {categoria}")
                 context_parts.append(f"  📦 Disponibilidad: {estado_disponibilidad}")
+                context_parts.append(f"  📊 Stock: {stock_num} unidades")
                 
                 # Agregar información de promociones si existe
                 promociones = payload.get('promociones_activas', '')

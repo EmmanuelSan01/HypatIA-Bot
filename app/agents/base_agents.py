@@ -54,30 +54,24 @@ class ProductSearchTool(lr.ToolMessage):
             if not results:
                 return "No se encontraron productos que coincidan con tu búsqueda."
             
-            # Formatear resultados con disponibilidad corregida
             formatted_results = []
             for result in results:
                 payload = result.get("payload", {})
                 score = result.get("score", 0)
                 
-                # Corregir extracción de disponibilidad
-                disponible_raw = payload.get("disponible", False)
-                stock_num = payload.get("stock", 0)
+                # Extraer disponibilidad directamente del payload sin modificar
+                # El valor ya viene calculado correctamente desde DataSyncService
+                disponible_final = payload.get("disponible", False)
                 
-                # Determinar disponibilidad real
-                if isinstance(disponible_raw, bool):
-                    disponible_final = disponible_raw
-                elif isinstance(stock_num, (int, float)):
-                    disponible_final = stock_num > 0
-                else:
-                    disponible_final = False
+                # Log para debugging si es necesario
+                logger.debug(f"Product {payload.get('nombre', 'N/A')}: disponible={disponible_final}, stock={payload.get('stock', 0)}")
                 
                 formatted_results.append({
                     "nombre": payload.get("nombre", "N/A"),
                     "descripcion": payload.get("descripcion", "N/A"),
                     "precio": payload.get("precio", "N/A"),
                     "categoria": payload.get("categoria", "N/A"),
-                    "disponible": disponible_final,  # Usar valor corregido
+                    "disponible": disponible_final,  # Usar valor directo del payload
                     "stock": payload.get("stock", 0),
                     "promociones_activas": payload.get("promociones_activas", ""),
                     "relevance_score": score
