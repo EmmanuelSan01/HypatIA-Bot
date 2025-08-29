@@ -59,12 +59,9 @@ class ProductSearchTool(lr.ToolMessage):
                 payload = result.get("payload", {})
                 score = result.get("score", 0)
                 
-                # Extraer disponibilidad directamente del payload sin modificar
-                # El valor ya viene calculado correctamente desde DataSyncService
                 disponible_final = payload.get("disponible", False)
                 
-                # Log para debugging si es necesario
-                logger.debug(f"Product {payload.get('nombre', 'N/A')}: disponible={disponible_final}, stock={payload.get('stock', 0)}")
+                logger.debug(f"Product {payload.get('nombre', 'N/A')}: disponible={disponible_final}")
                 
                 formatted_results.append({
                     "nombre": payload.get("nombre", "N/A"),
@@ -72,7 +69,6 @@ class ProductSearchTool(lr.ToolMessage):
                     "precio": payload.get("precio", "N/A"),
                     "categoria": payload.get("categoria", "N/A"),
                     "disponible": disponible_final,  # Usar valor directo del payload
-                    "stock": payload.get("stock", 0),
                     "promociones_activas": payload.get("promociones_activas", ""),
                     "relevance_score": score
                 })
@@ -284,8 +280,7 @@ class AnalyticsAgent(ChatAgent):
         if any(indicator in user_msg.lower() for indicator in positive_indicators):
             self.conversation_metrics["user_satisfaction"].append("positive")
             
-        # Detectar indicadores de conversión
-        conversion_indicators = ["comprar", "precio", "disponible", "stock"]
+        conversion_indicators = ["comprar", "precio", "disponible"]
         if any(indicator in user_msg.lower() for indicator in conversion_indicators):
             self.conversation_metrics["conversion_indicators"].append(user_msg[:50])
     
@@ -355,11 +350,12 @@ class MainBaekhoAgent(ChatAgent):
             {sales_response}
             
             INSTRUCCIONES CRÍTICAS PARA DISPONIBILIDAD:
-            - La información de productos incluye el campo 'disponible' que indica si hay stock
-            - Si 'disponible' es True, el producto TIENE STOCK disponible
-            - Si 'disponible' es False, el producto NO TIENE STOCK disponible
+            - La información de productos incluye el campo 'disponible' que indica la disponibilidad
+            - Si 'disponible' es True, el producto ESTÁ DISPONIBLE para compra
+            - Si 'disponible' es False, el producto NO ESTÁ DISPONIBLE para compra
             - Responde con precisión sobre la disponibilidad basándote en este campo booleano
-            - NO asumas que no hay stock si no tienes información clara
+            - NO asumas que no hay disponibilidad si no tienes información clara
+            - La cantidad exacta de unidades no es relevante para el cliente
             
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.

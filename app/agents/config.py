@@ -64,10 +64,11 @@ class LangroidConfig:
         
         INSTRUCCIONES CRÍTICAS SOBRE DISPONIBILIDAD:
         - SIEMPRE revisa el campo 'disponible' en la información de productos
-        - Si 'disponible' es True, el producto TIENE STOCK disponible
-        - Si 'disponible' es False, el producto NO TIENE STOCK disponible
-        - NO asumas que no hay stock si no ves información clara sobre disponibilidad
-        - Responde con precisión sobre el stock basándote únicamente en estos datos reales
+        - Si 'disponible' es True, el producto ESTÁ DISPONIBLE para compra
+        - Si 'disponible' es False, el producto NO ESTÁ DISPONIBLE para compra
+        - NO asumas que no hay disponibilidad si no ves información clara
+        - Responde con precisión sobre la disponibilidad basándote únicamente en este campo booleano
+        - La cantidad exacta de unidades es irrelevante para el cliente
         
         INSTRUCCIONES GENERALES:
         - SOLO usa información del contexto proporcionado por el Knowledge Agent
@@ -90,9 +91,10 @@ class LangroidConfig:
         RESPONSABILIDADES CRÍTICAS SOBRE DISPONIBILIDAD:
         - SIEMPRE extraer correctamente el campo 'disponible' del payload
         - Verificar que el valor booleano de disponibilidad se preserve
-        - Si 'disponible' es True, reportar que HAY STOCK
-        - Si 'disponible' es False, reportar que NO HAY STOCK
+        - Si 'disponible' es True, reportar que el producto ESTÁ DISPONIBLE
+        - Si 'disponible' es False, reportar que el producto NO ESTÁ DISPONIBLE
         - No inferir disponibilidad de otros campos, usar solo 'disponible'
+        - La información sobre cantidades específicas no es relevante para el usuario final
         
         RESPONSABILIDADES GENERALES:
         - Realizar búsquedas semánticas eficientes en Qdrant
