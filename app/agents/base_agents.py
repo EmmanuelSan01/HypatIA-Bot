@@ -54,31 +54,21 @@ class ProductSearchTool(lr.ToolMessage):
             if not results:
                 return "No se encontraron productos que coincidan con tu búsqueda."
             
-            # Formatear resultados con disponibilidad corregida
             formatted_results = []
             for result in results:
                 payload = result.get("payload", {})
                 score = result.get("score", 0)
                 
-                # Corregir extracción de disponibilidad
-                disponible_raw = payload.get("disponible", False)
-                stock_num = payload.get("stock", 0)
+                disponible_final = payload.get("disponible", False)
                 
-                # Determinar disponibilidad real
-                if isinstance(disponible_raw, bool):
-                    disponible_final = disponible_raw
-                elif isinstance(stock_num, (int, float)):
-                    disponible_final = stock_num > 0
-                else:
-                    disponible_final = False
+                logger.debug(f"Product {payload.get('nombre', 'N/A')}: disponible={disponible_final}")
                 
                 formatted_results.append({
                     "nombre": payload.get("nombre", "N/A"),
                     "descripcion": payload.get("descripcion", "N/A"),
                     "precio": payload.get("precio", "N/A"),
                     "categoria": payload.get("categoria", "N/A"),
-                    "disponible": disponible_final,  # Usar valor corregido
-                    "stock": payload.get("stock", 0),
+                    "disponible": disponible_final,  # Usar valor directo del payload
                     "promociones_activas": payload.get("promociones_activas", ""),
                     "relevance_score": score
                 })
@@ -290,8 +280,7 @@ class AnalyticsAgent(ChatAgent):
         if any(indicator in user_msg.lower() for indicator in positive_indicators):
             self.conversation_metrics["user_satisfaction"].append("positive")
             
-        # Detectar indicadores de conversión
-        conversion_indicators = ["comprar", "precio", "disponible", "stock"]
+        conversion_indicators = ["comprar", "precio", "disponible"]
         if any(indicator in user_msg.lower() for indicator in conversion_indicators):
             self.conversation_metrics["conversion_indicators"].append(user_msg[:50])
     
@@ -361,11 +350,12 @@ class MainBaekhoAgent(ChatAgent):
             {sales_response}
             
             INSTRUCCIONES CRÍTICAS PARA DISPONIBILIDAD:
-            - La información de productos incluye el campo 'disponible' que indica si hay stock
-            - Si 'disponible' es True, el producto TIENE STOCK disponible
-            - Si 'disponible' es False, el producto NO TIENE STOCK disponible
+            - La información de productos incluye el campo 'disponible' que indica la disponibilidad
+            - Si 'disponible' es True, el producto ESTÁ DISPONIBLE para compra
+            - Si 'disponible' es False, el producto NO ESTÁ DISPONIBLE para compra
             - Responde con precisión sobre la disponibilidad basándote en este campo booleano
-            - NO asumas que no hay stock si no tienes información clara
+            - NO asumas que no hay disponibilidad si no tienes información clara
+            - La cantidad exacta de unidades no es relevante para el cliente
             
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.
