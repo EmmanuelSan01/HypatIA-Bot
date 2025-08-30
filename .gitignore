@@ -5,7 +5,7 @@
 *.pem
 
 # Ignorar dependencias de Python
-_pycache_/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
