@@ -13,7 +13,7 @@ from app.config import *
 logger = logging.getLogger(__name__)
 
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-QDRANT_PORT = os.getenv("QDRANT_PORT", 6333)
+QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection")
 QDRANT_ENABLED = os.getenv("QDRANT_ENABLED", "true").lower() == "true"
@@ -27,9 +27,8 @@ _client: Optional[QdrantClient] = None
 class QdrantService:
     def __init__(self):
         self.client = QdrantClient(
-            host=QDRANT_HOST,
-            port=QDRANT_PORT,
-            api_key=QDRANT_API_KEY if QDRANT_API_KEY else None
+            url=QDRANT_URL,            
+            api_key=QDRANT_API_KEY
         )
         self.collection_name = QDRANT_COLLECTION_NAME
         self.vector_size = VECTOR_SIZE
