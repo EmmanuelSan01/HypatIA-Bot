@@ -15,7 +15,7 @@ services:
       - QDRANT_COLLECTION=sportbot_collection
     volumes:
       - ../..:/workspaces:cached
-    command: sleep infinity
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       - db
       - qdrant
