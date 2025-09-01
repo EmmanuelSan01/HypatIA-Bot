@@ -4,7 +4,7 @@ FROM python:3.12-slim
 # Establece el directorio de trabajo en la misma ubicación del volumen.
 WORKDIR /workspaces
 
-# Instala las dependencias del sistema necesarias.
+# Instala las dependencias del sistema necesarias, incluyendo las librerías para MySQL y certificados de CA.
 RUN apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
@@ -14,11 +14,10 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     git \
     unzip \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia los archivos de dependencia de Python.
-# La ruta aquí es 'requirements.txt' porque el contexto de construcción
-# se establecerá en el directorio padre de este Dockerfile.
 COPY ../requirements.txt ./
 
 # Instala las dependencias de Python.

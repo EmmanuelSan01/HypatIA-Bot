@@ -35,7 +35,7 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./.devcontainer/mysql/init:/docker-entrypoint-initdb.d
+      - ./.devcontainer/mysql/init:/docker-entry-point-initdb.d
     networks:
       - sportbot-network
     restart: unless-stopped
