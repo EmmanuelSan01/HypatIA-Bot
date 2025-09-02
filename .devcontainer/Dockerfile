@@ -1,10 +1,11 @@
-# Usa una imagen base de Python que sea adecuada para construir la aplicación.
-FROM python:3.12-slim
+# Usa una imagen base de Python que sea compatible con tus dependencias.
+# Las dependencias de FastAPI y HTTPX requieren Python >=3.11.
+FROM python:3.11-slim
 
-# Establece el directorio de trabajo en la misma ubicación del volumen.
+# Establece el directorio de trabajo en una ruta estándar.
 WORKDIR /workspaces
 
-# Instala las dependencias del sistema necesarias, incluyendo las librerías para MySQL y certificados de CA.
+# Instala las dependencias del sistema necesarias para las librerías de Python.
 RUN apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
@@ -18,24 +19,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia los archivos de dependencia de Python.
-COPY ../requirements.txt ./
+COPY requirements.txt ./
 
 # Instala las dependencias de Python.
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copia el resto del código del proyecto.
-# Esto copia la carpeta 'app', 'tests', 'main.py', etc.
 COPY . .
 
-# Exponer el puerto en el que la aplicación se ejecutará.
+# Expone el puerto en el que la aplicación se ejecutará.
 EXPOSE 8000
 
 # Comando para ejecutar la aplicación cuando el contenedor se inicie.
-# La ruta al archivo principal ahora es 'app.main'
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-# Crear usuario no-root para seguridad
-RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /workspaces
-USER app
