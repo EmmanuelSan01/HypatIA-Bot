@@ -3,7 +3,7 @@
 FROM python:3.11-slim
 
 # Establece el directorio de trabajo en una ruta estándar.
-WORKDIR /workspaces
+WORKDIR /usr/src/app
 
 # Instala las dependencias del sistema necesarias para las librerías de Python.
 RUN apt-get update && apt-get install -y \
