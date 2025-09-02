@@ -17,6 +17,7 @@ from app.services.qdrant import QdrantService
 from app.database import get_sync_connection
 
 logger = logging.getLogger(__name__)
+logging.getLogger("langroid").setLevel(logging.ERROR)
 
 # ============================
 # HERRAMIENTAS PERSONALIZADAS
@@ -322,7 +323,6 @@ class MainBaekhoAgent(ChatAgent):
         
         # Herramientas habilitadas
         self.enable_message(ForwardTool)
-        self.enable_message(AgentDoneTool)
         
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
                                   conversation_context: Optional[Dict] = None) -> str:
