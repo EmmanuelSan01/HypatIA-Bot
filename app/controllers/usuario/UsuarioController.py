@@ -12,10 +12,10 @@ class UsuarioController:
         try:
             with connection.cursor() as cursor:
                 sql = """
-                INSERT INTO usuario (nombre, telefono) 
-                VALUES (%s, %s)
+                INSERT INTO usuario (nombre, username, telefono) 
+                VALUES (%s, %s, %s)
                 """
-                cursor.execute(sql, (usuario.nombre, usuario.telefono))
+                cursor.execute(sql, (usuario.nombre, usuario.username, usuario.telefono))
                 connection.commit()
                 
                 usuario_id = cursor.lastrowid
@@ -62,6 +62,10 @@ class UsuarioController:
                     update_fields.append("nombre = %s")
                     values.append(usuario.nombre)
                 
+                if usuario.username is not None:
+                    update_fields.append("username = %s")
+                    values.append(usuario.username)
+                
                 if usuario.telefono is not None:
                     update_fields.append("telefono = %s")
                     values.append(usuario.telefono)
@@ -86,6 +90,19 @@ class UsuarioController:
             with connection.cursor() as cursor:
                 sql = "DELETE FROM usuario WHERE id = %s"
                 cursor.execute(sql, (usuario_id,))
+                connection.commit()
+                return cursor.rowcount > 0
+        finally:
+            connection.close()
+
+    @staticmethod
+    def update_usuario_telefono(usuario_id: int, telefono: str) -> bool:
+        """Update only the telefono field for a usuario"""
+        connection = get_sync_connection()
+        try:
+            with connection.cursor() as cursor:
+                sql = "UPDATE usuario SET telefono = %s WHERE id = %s"
+                cursor.execute(sql, (telefono, usuario_id))
                 connection.commit()
                 return cursor.rowcount > 0
         finally:

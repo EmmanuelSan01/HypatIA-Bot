@@ -4,6 +4,7 @@ from datetime import datetime
 
 class UsuarioBase(BaseModel):
     nombre: str
+    username: Optional[str] = None
     telefono: Optional[str] = None
 
 class UsuarioCreate(UsuarioBase):
@@ -11,6 +12,7 @@ class UsuarioCreate(UsuarioBase):
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
+    username: Optional[str] = None
     telefono: Optional[str] = None
 
 class UsuarioResponse(UsuarioBase):

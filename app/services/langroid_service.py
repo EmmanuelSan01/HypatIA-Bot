@@ -137,11 +137,10 @@ class LangroidAgentService:
                 latest_chat = max(user_chats, key=lambda x: x.fechaCreacion)
                 return latest_chat.id
             else:
-                # Crear nuevo chat
+                # Crear nuevo chat con campos válidos del modelo ChatCreate
                 new_chat = ChatCreate(
                     usuarioId=user_id,
-                    titulo="Conversación con BaekhoBot",
-                    activo=True
+                    chatId=f"telegram_{user_id}_{int(datetime.now().timestamp())}"
                 )
                 created_chat = chat_controller.create_chat(new_chat)
                 return created_chat.id if created_chat else None

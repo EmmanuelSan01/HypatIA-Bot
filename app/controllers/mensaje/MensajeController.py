@@ -142,7 +142,7 @@ class MensajeController:
                     "conversation": [
                         {
                             "tipo": msg["tipo"],
-                            "contenido": msg["contenido"][:200] + "..." if len(msg["contenido"]) > 200 else msg["contenido"],
+                            "contenido": msg["contenido"],
                             "timestamp": msg["fechaEnvio"].isoformat() if msg["fechaEnvio"] else None
                         }
                         for msg in messages

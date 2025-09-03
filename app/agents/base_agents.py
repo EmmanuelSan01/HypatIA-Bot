@@ -4,6 +4,7 @@ Implementación de agentes base usando Langroid Framework
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import re
 
 import langroid as lr
 from langroid import ChatAgent, ChatAgentConfig
@@ -15,6 +16,7 @@ from langroid.agent.tools import AgentDoneTool, PassTool, ForwardTool
 from app.agents.config import langroid_config
 from app.services.qdrant import QdrantService
 from app.database import get_sync_connection
+from app.controllers.usuario.UsuarioController import UsuarioController
 
 logger = logging.getLogger(__name__)
 logging.getLogger("langroid").setLevel(logging.ERROR)
@@ -199,6 +201,74 @@ class UserHistoryTool(lr.ToolMessage):
             logger.error(f"Error in UserHistoryTool: {str(e)}")
             return f"Error obteniendo historial: {str(e)}"
 
+class PhoneValidationTool(lr.ToolMessage):
+    """Herramienta para validar números de teléfono colombianos"""
+    request: str = "phone_validation"
+    purpose: str = "Validar formato de números de teléfono colombianos"
+    phone_number: str
+    user_id: Optional[int] = None  # Added user_id to get current phone from database
+    
+    def handle(self) -> str:
+        """Valida el formato del número de teléfono"""
+        try:
+            # Limpiar el número (remover espacios, guiones, paréntesis)
+            clean_number = re.sub(r'[^\d+]', '', self.phone_number.strip())
+            
+            # Remover prefijo +57 si existe
+            if clean_number.startswith('+57'):
+                clean_number = clean_number[3:]
+            elif clean_number.startswith('57') and len(clean_number) == 12:
+                clean_number = clean_number[2:]
+            
+            # Validar formato: 10 dígitos que empiecen con 3
+            if len(clean_number) == 10 and clean_number.startswith('3') and clean_number.isdigit():
+                return f"VALID:{clean_number}"
+            else:
+                current_phone = "ninguno registrado"
+                if self.user_id:
+                    try:
+                        usuario_controller = UsuarioController()
+                        usuario = usuario_controller.get_usuario_by_id(self.user_id)
+                        if usuario and usuario.telefono:
+                            current_phone = usuario.telefono
+                    except Exception as e:
+                        logger.error(f"Error getting current phone: {str(e)}")
+                
+                return f"INVALID:El número debe tener 10 dígitos y empezar con 3|CURRENT:{current_phone}"
+                
+        except Exception as e:
+            logger.error(f"Error validating phone: {str(e)}")
+            return "INVALID:Error procesando el número|CURRENT:ninguno registrado"
+
+class SavePhoneTool(lr.ToolMessage):
+    """Herramienta para guardar número de teléfono validado"""
+    request: str = "save_phone"
+    purpose: str = "Guardar número de teléfono del usuario en la base de datos"
+    user_id: int
+    phone_number: str
+    
+    def handle(self) -> str:
+        """Guarda el número de teléfono en la base de datos"""
+        try:
+            usuario_controller = UsuarioController()
+            
+            # Actualizar el teléfono del usuario
+            success = usuario_controller.update_usuario_telefono(self.user_id, self.phone_number)
+            
+            if success:
+                usuario = usuario_controller.get_usuario_by_id(self.user_id)
+                if usuario and usuario.telefono:
+                    saved_phone = usuario.telefono
+                    return f"SAVED:{saved_phone}"
+                else:
+                    return f"SAVED:{self.phone_number}"
+            else:
+                return "ERROR:No se pudo guardar el número"
+                
+        except Exception as e:
+            logger.error(f"Error saving phone: {str(e)}")
+            return f"ERROR:Error guardando número: {str(e)}"
+
 # ============================
 # AGENTES PRINCIPALES
 # ============================
@@ -236,11 +306,32 @@ class SalesAgent(ChatAgent):
     def __init__(self, config: ChatAgentConfig):
         super().__init__(config)
         self.enable_message(UserHistoryTool)
+        self.enable_message(PhoneValidationTool)
+        self.enable_message(SavePhoneTool)
         self.enable_message(PassTool)
         
-    def handle_message_fallback(self, msg: str) -> str:
+    def handle_message_fallback(self, msg: str, user_id: Optional[int] = None) -> str:  # Added user_id parameter
         """Maneja lógica de ventas"""
         try:
+            phone_patterns = [
+                r'\+?57\s*3\d{9}',  # +57 3xxxxxxxxx
+                r'3\d{9}',          # 3xxxxxxxxx
+                r'\d{10}'           # 10 digits
+            ]
+            
+            for pattern in phone_patterns:
+                matches = re.findall(pattern, msg)
+                if matches:
+                    # Found potential phone number, validate it
+                    potential_phone = matches[0]
+                    validation_tool = PhoneValidationTool(phone_number=potential_phone, user_id=user_id)  # Pass user_id to validation tool
+                    validation_result = validation_tool.handle()
+                    
+                    if validation_result.startswith("VALID:"):
+                        return f"PHONE_DETECTED:{validation_result}"
+                    else:
+                        return f"PHONE_INVALID:{validation_result}"
+            
             # Analizar mensaje para oportunidades de venta
             recommendations = []
             
@@ -251,6 +342,10 @@ class SalesAgent(ChatAgent):
                 recommendations.append("¿Te interesaría ver nuestros uniformes a juego?")
             elif "proteccion" in msg.lower():
                 recommendations.append("¿Necesitas también guantes o espinilleras?")
+            
+            purchase_keywords = ["comprar", "compra", "precio", "cuanto cuesta", "quiero", "necesito"]
+            if any(keyword in msg.lower() for keyword in purchase_keywords):
+                recommendations.append("PURCHASE_INTENT_DETECTED")
             
             if recommendations:
                 return f"Sugerencias adicionales: {' '.join(recommendations)}"
@@ -322,6 +417,8 @@ class MainBaekhoAgent(ChatAgent):
         )
         
         # Herramientas habilitadas
+        self.enable_message(PhoneValidationTool)
+        self.enable_message(SavePhoneTool)
         self.enable_message(ForwardTool)
         
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
@@ -331,15 +428,41 @@ class MainBaekhoAgent(ChatAgent):
             # Rastrear con Analytics Agent
             self.analytics_agent.track_conversation(message, "")
             
+            sales_response = self.sales_agent.handle_message_fallback(message, user_id)  # Pass user_id to sales agent
+            
+            # Handle phone number detection and validation
+            if "PHONE_DETECTED:" in sales_response:
+                phone_number = sales_response.split("PHONE_DETECTED:VALID:")[1]
+                if user_id:
+                    save_tool = SavePhoneTool(user_id=user_id, phone_number=phone_number)
+                    save_result = save_tool.handle()
+                    
+                    if save_result.startswith("SAVED:"):
+                        saved_phone = save_result.split("SAVED:")[1]
+                        return f"¡Perfecto! He recibido y guardado tu número de teléfono {saved_phone}. 📞✨"
+                    else:
+                        return "He recibido tu número de teléfono. 📞"
+                else:
+                    return "He recibido tu número de teléfono. 📞"
+            
+            elif "PHONE_INVALID:" in sales_response:
+                parts = sales_response.split("PHONE_INVALID:")[1].split("|CURRENT:")
+                error_msg = parts[0]
+                current_phone = parts[1] if len(parts) > 1 else "ninguno registrado"
+                
+                response = f"Parece que el número que ingresaste no es correcto. {error_msg}. Por favor, envíalo nuevamente. 📱"
+                if current_phone != "ninguno registrado":
+                    response += f"\n\nTu número actual registrado es: {current_phone}"
+                else:
+                    response += f"\n\nActualmente no tienes ningún número registrado."
+                
+                return response
+            
             # 1. Consultar Knowledge Agent para obtener contexto
             logger.info("Consultando Knowledge Agent...")
             knowledge_response = self.knowledge_agent.handle_message_fallback(message)
             
-            # 2. Consultar Sales Agent para recomendaciones
-            logger.info("Consultando Sales Agent...")
-            sales_response = self.sales_agent.handle_message_fallback(message)
-            
-            # 3. Generar respuesta final combinando información
+            # 2. Generate final response combining information
             context_prompt = f"""
             Consulta del usuario: {message}
             
@@ -356,6 +479,10 @@ class MainBaekhoAgent(ChatAgent):
             - Responde con precisión sobre la disponibilidad basándote en este campo booleano
             - NO asumas que no hay disponibilidad si no tienes información clara
             - La cantidad exacta de unidades no es relevante para el cliente
+            
+            INSTRUCCIONES PARA INTENCIÓN DE COMPRA:
+            - Si detectas "PURCHASE_INTENT_DETECTED" en las recomendaciones de ventas, debes solicitar el número de teléfono del usuario
+            - Menciona los canales de venta y luego pide amablemente el número de teléfono
             
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.

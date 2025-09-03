@@ -102,10 +102,10 @@ class TelegramController:
             if existing_user:
                 return existing_user.id
             
-            # Crear nuevo usuario
             new_user = UsuarioCreate(
                 nombre=full_name,
-                telefono=telegram_user.username if telegram_user.username else None
+                username=telegram_user.username if telegram_user.username else None,
+                telefono=None  # Keep telefono empty for future phone number implementation
             )
             
             created_user = self.usuario_controller.create_usuario(new_user)

@@ -18,7 +18,6 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection")
 QDRANT_ENABLED = os.getenv("QDRANT_ENABLED", "true").lower() == "true"
 
-# Embeddings: puedes cambiar por OpenAI con una flag (ver requisitos). :contentReference[oaicite:2]{index=2}
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-small")
 VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", 384))
 
