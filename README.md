@@ -18,7 +18,7 @@
   
   **Stack obligatorio:** Python 3.11+, FastAPI, Qdrant, Langroid, Frontend React \+ TypeScript.
   
-  **Objetivo ejecutivo:** Entregar un asistente comercial que responda e interactúe como IZA, con RAG sobre base de conocimiento en Qdrant, accesible por un chat web mínimo y al menos un canal de mensajería (WhatsApp Cloud o Telegram) totalmente funcional.
+  **Objetivo ejecutivo:** Entregar un asistente comercial con RAG sobre base de conocimiento en Qdrant, accesible por un chat web mínimo y al menos un canal de mensajería (WhatsApp Cloud o Telegram) totalmente funcional.
   
   ---
   
@@ -201,7 +201,7 @@
   * **Vector**: tamaño 384 (FastEmbed por defecto) o 1536+ (OpenAI) según configuración.
   
   * **Payload sugerido**:
-  	```
+  	```json
   	{
   	   "text": "string",
   	   "source": "faq|doc|pdf|web",
@@ -246,7 +246,7 @@
   * **Query**: `page`, `limit`, `search`, `channel?=web|wa|tg`.
   
   * **Response 200**:
-  	```
+  	```json
   	{
   	  "items": [
   	    {
@@ -265,7 +265,7 @@
   ### `GET /admin/chats/{id}`
   
   * **Response 200**:
-  	```
+  	```json
   	{
   	  "user_id": "...",
   	  "channel": "wa",
@@ -286,7 +286,7 @@
   ---
   
   ## 8\. Configuración y Variables de Entorno
-  ```
+  ```env
   OPENAI_API_KEY=
   USE_OPENAI_EMBEDDINGS=false
   QDRANT_URL=http://qdrant:6333
@@ -425,7 +425,9 @@ Entregar un asistente comercial inteligente que:
 
 ## 🏗️ Arquitectura
 
-`Usuario ⇄ (Web/WhatsApp/Telegram) ⇄ FastAPI ⇄ Langroid Agent ⇄ Qdrant ⇄ LLM ⇄ Respuesta`
+<div align="center">
+  <strong>Usuario ⇄ (Web/WhatsApp/Telegram) <b>⇄</b> FastAPI ⇄ Langroid Agent ⇄ Qdrant ⇄ LLM ⇄ Respuesta</strong>
+</div>
 
 ### Stack Tecnológico
 
