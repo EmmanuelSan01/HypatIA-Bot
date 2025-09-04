@@ -269,6 +269,27 @@ class SavePhoneTool(lr.ToolMessage):
             logger.error(f"Error saving phone: {str(e)}")
             return f"ERROR:Error guardando número: {str(e)}"
 
+class CheckUserPhoneTool(lr.ToolMessage):
+    """Herramienta para verificar si el usuario ya tiene un número de teléfono registrado"""
+    request: str = "check_user_phone"
+    purpose: str = "Verificar si el usuario ya tiene un número de teléfono en la base de datos"
+    user_id: int
+    
+    def handle(self) -> str:
+        """Verifica si el usuario ya tiene un número de teléfono registrado"""
+        try:
+            usuario_controller = UsuarioController()
+            usuario = usuario_controller.get_usuario_by_id(self.user_id)
+            
+            if usuario and usuario.telefono and usuario.telefono.strip():
+                return f"HAS_PHONE:{usuario.telefono}"
+            else:
+                return "NO_PHONE:Usuario no tiene número registrado"
+                
+        except Exception as e:
+            logger.error(f"Error checking user phone: {str(e)}")
+            return "NO_PHONE:Error verificando número"
+
 # ============================
 # AGENTES PRINCIPALES
 # ============================
@@ -308,9 +329,10 @@ class SalesAgent(ChatAgent):
         self.enable_message(UserHistoryTool)
         self.enable_message(PhoneValidationTool)
         self.enable_message(SavePhoneTool)
+        self.enable_message(CheckUserPhoneTool)  # Agregada nueva herramienta para verificar teléfono
         self.enable_message(PassTool)
         
-    def handle_message_fallback(self, msg: str, user_id: Optional[int] = None) -> str:  # Added user_id parameter
+    def handle_message_fallback(self, msg: str, user_id: Optional[int] = None) -> str:
         """Maneja lógica de ventas"""
         try:
             phone_patterns = [
@@ -324,7 +346,7 @@ class SalesAgent(ChatAgent):
                 if matches:
                     # Found potential phone number, validate it
                     potential_phone = matches[0]
-                    validation_tool = PhoneValidationTool(phone_number=potential_phone, user_id=user_id)  # Pass user_id to validation tool
+                    validation_tool = PhoneValidationTool(phone_number=potential_phone, user_id=user_id)
                     validation_result = validation_tool.handle()
                     
                     if validation_result.startswith("VALID:"):
@@ -345,7 +367,18 @@ class SalesAgent(ChatAgent):
             
             purchase_keywords = ["comprar", "compra", "precio", "cuanto cuesta", "quiero", "necesito"]
             if any(keyword in msg.lower() for keyword in purchase_keywords):
-                recommendations.append("PURCHASE_INTENT_DETECTED")
+                if user_id:
+                    check_phone_tool = CheckUserPhoneTool(user_id=user_id)
+                    phone_check_result = check_phone_tool.handle()
+                    
+                    if phone_check_result.startswith("HAS_PHONE:"):
+                        # Usuario ya tiene teléfono, no solicitar nuevamente
+                        recommendations.append("PURCHASE_INTENT_DETECTED_WITH_PHONE")
+                    else:
+                        # Usuario no tiene teléfono, solicitar
+                        recommendations.append("PURCHASE_INTENT_DETECTED")
+                else:
+                    recommendations.append("PURCHASE_INTENT_DETECTED")
             
             if recommendations:
                 return f"Sugerencias adicionales: {' '.join(recommendations)}"
@@ -419,8 +452,31 @@ class MainBaekhoAgent(ChatAgent):
         # Herramientas habilitadas
         self.enable_message(PhoneValidationTool)
         self.enable_message(SavePhoneTool)
+        self.enable_message(CheckUserPhoneTool)  # Agregada herramienta para verificar teléfono
         self.enable_message(ForwardTool)
         
+    def get_conversation_stats(self) -> Dict[str, Any]:
+        """Obtiene estadísticas de conversación del analytics agent"""
+        try:
+            if hasattr(self, 'analytics_agent') and self.analytics_agent:
+                return self.analytics_agent.get_metrics()
+            else:
+                # Retornar estadísticas por defecto si no hay analytics agent
+                return {
+                    "total_messages": 0,
+                    "user_satisfaction": [],
+                    "conversion_indicators": [],
+                    "status": "analytics_agent_not_available"
+                }
+        except Exception as e:
+            logger.error(f"Error getting conversation stats: {str(e)}")
+            return {
+                "total_messages": 0,
+                "user_satisfaction": [],
+                "conversion_indicators": [],
+                "error": str(e)
+            }
+
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
                                   conversation_context: Optional[Dict] = None) -> str:
         """Maneja mensaje de usuario orquestando múltiples agentes"""
@@ -428,7 +484,7 @@ class MainBaekhoAgent(ChatAgent):
             # Rastrear con Analytics Agent
             self.analytics_agent.track_conversation(message, "")
             
-            sales_response = self.sales_agent.handle_message_fallback(message, user_id)  # Pass user_id to sales agent
+            sales_response = self.sales_agent.handle_message_fallback(message, user_id)
             
             # Handle phone number detection and validation
             if "PHONE_DETECTED:" in sales_response:
@@ -462,6 +518,16 @@ class MainBaekhoAgent(ChatAgent):
             logger.info("Consultando Knowledge Agent...")
             knowledge_response = self.knowledge_agent.handle_message_fallback(message)
             
+            phone_status_for_context = ""
+            if user_id:
+                check_phone_tool = CheckUserPhoneTool(user_id=user_id)
+                phone_check_result = check_phone_tool.handle()
+                
+                if phone_check_result.startswith("HAS_PHONE:"):
+                    phone_status_for_context = "USER_HAS_PHONE_REGISTERED"
+                else:
+                    phone_status_for_context = "USER_NO_PHONE_REGISTERED"
+            
             # 2. Generate final response combining information
             context_prompt = f"""
             Consulta del usuario: {message}
@@ -472,6 +538,8 @@ class MainBaekhoAgent(ChatAgent):
             Recomendaciones de ventas:
             {sales_response}
             
+            Estado actual del teléfono del usuario: {phone_status_for_context}
+            
             INSTRUCCIONES CRÍTICAS PARA DISPONIBILIDAD:
             - La información de productos incluye el campo 'disponible' que indica la disponibilidad
             - Si 'disponible' es True, el producto ESTÁ DISPONIBLE para compra
@@ -480,9 +548,12 @@ class MainBaekhoAgent(ChatAgent):
             - NO asumas que no hay disponibilidad si no tienes información clara
             - La cantidad exacta de unidades no es relevante para el cliente
             
-            INSTRUCCIONES PARA INTENCIÓN DE COMPRA:
-            - Si detectas "PURCHASE_INTENT_DETECTED" en las recomendaciones de ventas, debes solicitar el número de teléfono del usuario
-            - Menciona los canales de venta y luego pide amablemente el número de teléfono
+            INSTRUCCIONES CRÍTICAS PARA SOLICITAR TELÉFONO:
+            - Si el estado actual del teléfono es "USER_HAS_PHONE_REGISTERED", NUNCA solicites el número de teléfono
+            - Si el estado actual del teléfono es "USER_NO_PHONE_REGISTERED" Y detectas intención de compra, entonces SÍ solicita el número de teléfono
+            - Si detectas "PURCHASE_INTENT_DETECTED" en las recomendaciones de ventas pero el estado es "USER_HAS_PHONE_REGISTERED", NO solicites el teléfono
+            - Si detectas "PURCHASE_INTENT_DETECTED_WITH_PHONE" en las recomendaciones de ventas, NO solicites el teléfono
+            - SIEMPRE verifica el estado actual del teléfono antes de decidir si solicitarlo o no
             
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.
@@ -498,10 +569,6 @@ class MainBaekhoAgent(ChatAgent):
         except Exception as e:
             logger.error(f"Error in MainBaekhoAgent: {str(e)}")
             return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
-    
-    def get_conversation_stats(self) -> Dict[str, Any]:
-        """Obtiene estadísticas de la conversación"""
-        return self.analytics_agent.get_metrics()
 
 # ============================
 # FACTORY PARA CREAR AGENTES
