@@ -429,6 +429,16 @@ Entregar un asistente comercial inteligente que:
   <strong>Usuario ⇄ (Web/WhatsApp/Telegram) <b>⇄</b> FastAPI ⇄ Langroid Agent ⇄ Qdrant ⇄ LLM ⇄ Respuesta</strong>
 </div>
 
+### Flujo de Datos
+
+1. **Ingesta** (`IngestController`) → Procesa y vectoriza datos del catálogo
+2. **Consulta Usuario** → Recibida por `ChatController`
+3. **Procesamiento IA** → `LangroidService` coordina agentes especializados
+4. **Búsqueda Semántica** → `KnowledgeAgent` consulta Qdrant Vector DB
+5. **Recomendación** → `SalesAgent` genera respuesta contextual
+6. **Persistencia** → `MensajeController` almacena conversación
+7. **Respuesta** → Entregada al usuario via API/Telegram
+
 ### Stack Tecnológico
 
 **Backend:**
@@ -568,19 +578,21 @@ Ver documentación completa en: http://localhost:8000/docs
 
 ## 🗂️ Estructura del Proyecto
 
-```
+<details>
+  <summary><b>Estructura de carpetas</b></summary>
+  <pre><code>
 SportBot_backend
 ├── app/
-|   ├── agents/
-|   |   ├── base_agents.py
-|   |   └── config.py
-|   ├── controllers/
+|   ├── agents/                        # Sistema Multi-Agente Langroid
+|   |   ├── base_agents.py             # Implementación de agentes IA
+|   |   └── config.py                  # Configuración y prompts de agentes
+|   ├── controllers/                   # Lógica de negocio
 |   |   ├── categoria/
-|   |   |   └── CategoriaController.py
+|   |   |   └── CategoriaController.py 
 |   |   ├── chat/
-|   |   |   └── ChatController.py
+|   |   |   └── ChatController.py      # Controlador principal del chat
 |   |   ├── ingest/
-|   |   |   └── IngestController.py
+|   |   |   └── IngestController.py    # Ingesta de datos para RAG
 |   |   ├── mensaje/
 |   |   |   └── MensajeController.py
 |   |   ├── producto/
@@ -591,7 +603,7 @@ SportBot_backend
 |   |   |   └── TelegramController.py
 |   |   └── usuario/
 |   |       └── UsuarioController.py
-|   ├── models/
+|   ├── models/                        # Modelos de datos Pydantic
 |   |   ├── categoria/
 |   |   |   └── CategoriaModel.py
 |   |   ├── chat/
@@ -608,7 +620,7 @@ SportBot_backend
 |   |   |   └── TelegramModel.py
 |   |   └── usuario/
 |   |       └── UsuarioModel.py
-|   ├── routes/
+|   ├── routes/                        # Endpoints de la API
 |   |   ├── categoria/
 |   |   |   └── CategoriaRoutes.py
 |   |   ├── chat/
@@ -623,21 +635,94 @@ SportBot_backend
 |   |   |   └── TelegramRoutes.py
 |   |   └── usuario/
 |   |       └── UsuarioRoutes.py
-|   ├── services/
-|   |   ├── agent.py
-|   |   ├── data_sync.py
-|   |   ├── embedding.py
-|   |   ├── langroid_service.py
-|   |   └── qdrant.py
+|   ├── services/                      # Servicios principales
+|   |   ├── agent.py                   # Servicio legacy (reemplazado)
+|   |   ├── data_sync.py               # Sincronización de datos RAG
+|   |   ├── embedding.py               # Servicio de embeddings
+|   |   ├── langroid_service.py        # Servicio principal Langroid
+|   |   └── qdrant.py                  # Servicio Vector Database
 |   ├── config_example.py
-|   ├── config.py
-|   └── database.py
+|   ├── config.py                      # Configuración unificada (Docker/Local)
+|   └── database.py                    # Gestión de conexiones MySQL
 ├── tests/
 |   ├── test_api_chats.py
 |   └── test_api.py
-├── main.py
-└── requirements.txt
-```
+├── main.py                            # Punto de entrada de la aplicación FastAPI
+└── requirements.txt                   # Dependencias del proyecto
+  </code></pre>
+</details>
+
+### Sistema Multi-Agente (Langroid)
+
+#### `MainBaekhoAgent`
+- **Función**: Orquestador principal del sistema
+- **Responsabilidades**: Coordina la interacción entre agentes especializados
+
+#### `KnowledgeAgent`
+- **Función**: Búsqueda y recuperación de conocimiento
+- **Herramientas**: `ProductSearchTool`, `PromotionSearchTool`
+- **Capacidades**: Búsqueda semántica en catálogo de productos
+
+#### `SalesAgent`
+- **Función**: Recomendaciones de ventas y validación
+- **Herramientas**: `PhoneValidationTool`
+- **Capacidades**: Validación de números telefónicos colombianos, recomendaciones personalizadas
+
+#### `AnalyticsAgent`
+- **Función**: Análisis de conversaciones
+- **Capacidades**: Métricas de interacción, análisis de comportamiento
+
+### Esquema de Base de Datos
+
+- **`categoria`**: Categorías de productos deportivos
+- **`producto`**: Catálogo con precios e inventario
+- **`promocion`**: Promociones y descuentos activos
+- **`usuario`**: Perfiles de usuario con números telefónicos
+- **`chat`**: Sesiones de conversación
+- **`mensaje`**: Mensajes individuales (usuario/bot)
+
+## 🔧 Componentes Clave
+
+### 1. **main.py**
+Punto de entrada de la aplicación FastAPI con:
+- Configuración de rutas y middleware
+- Inicialización de servicios
+- Configuración CORS y documentación automática
+
+### 2. **app/config.py**
+Gestión unificada de configuración:
+- Compatibilidad Docker/Local
+- Variables de entorno
+- Configuración de base de datos y servicios IA
+
+### 3. **app/database.py**
+Gestión de conexiones MySQL:
+- Pool de conexiones asíncronas
+- Manejo de transacciones
+- Configuración aiomysql/PyMySQL
+
+### 4. **app/services/langroid_service.py**
+Servicio principal de IA:
+- Integración del sistema multi-agente
+- Procesamiento de consultas conversacionales
+- Coordinación de herramientas especializadas
+
+### 5. **app/controllers/chat/ChatController.py**
+Controlador principal del chat:
+- Integración con agentes Langroid
+- Persistencia de conversaciones
+- Manejo de contexto y historial
+
+## 🚀 Características Principales
+
+1. **Sistema Multi-Agente Inteligente**: Framework Langroid con agentes especializados
+2. **RAG Implementado**: Búsqueda semántica con Qdrant Vector Database
+3. **CRUD Completo**: Gestión de productos, categorías, promociones y usuarios
+4. **Sistema de Chat Persistente**: Historial de conversaciones y análisis
+5. **Integración Telegram**: Soporte para webhook de bot
+6. **Validación Telefónica**: Validación y almacenamiento de números colombianos
+7. **Sincronización de Datos**: Actualización automática de base de conocimiento
+8. **Soporte Docker**: Configuración lista para contenedores
 
 ## 📋 Roadmap
 
