@@ -641,12 +641,8 @@ SportBot_backend
 |   |   ├── embedding.py               # Servicio de embeddings
 |   |   ├── langroid_service.py        # Servicio principal Langroid
 |   |   └── qdrant.py                  # Servicio Vector Database
-|   ├── config_example.py
 |   ├── config.py                      # Configuración unificada (Docker/Local)
 |   └── database.py                    # Gestión de conexiones MySQL
-├── tests/
-|   ├── test_api_chats.py
-|   └── test_api.py
 ├── main.py                            # Punto de entrada de la aplicación FastAPI
 └── requirements.txt                   # Dependencias del proyecto
   </code></pre>
