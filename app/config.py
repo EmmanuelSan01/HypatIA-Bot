@@ -49,6 +49,14 @@ class Settings:
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_WEBHOOK_URL: str = os.getenv("TELEGRAM_WEBHOOK_URL", "")
     BOT_NAME: str = os.getenv("BOT_NAME", "SportBot")
+
+    # ===== CONFIGURACIÓN DE WHATSAPP =====
+    APP_ID: str = os.getenv("APP_ID", "")
+    APP_SECRET: str = os.getenv("APP_SECRET", "")
+    ACCESS_TOKEN: str = os.getenv("ACCESS_TOKEN", "")
+    PHONE_ID: str = os.getenv("PHONE_ID", "")
+    VERIFY_TOKEN: str = os.getenv("VERIFY_TOKEN", "")
+    WEBHOOK: str = os.getenv("WEBHOOK", "")
     
     # ===== CONFIGURACIÓN DE SEGURIDAD =====
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")

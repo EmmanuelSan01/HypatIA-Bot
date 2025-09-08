@@ -1,0 +1,110 @@
+import logging
+import httpx
+from app.config import Config
+from app.controllers.chat.ChatController import ChatController
+from app.controllers.usuario.UsuarioController import UsuarioController
+
+logger = logging.getLogger(__name__)
+
+class WhatsAppController:
+    """
+    Controlador para manejar la lógica de interacción con WhatsApp y el LLM
+    """
+    def __init__(self):
+        self.app_id = Config.APP_ID
+        self.app_secret = Config.APP_SECRET
+        self.access_token = Config.ACCESS_TOKEN
+        self.phone_id = Config.PHONE_ID
+        self.webhook_url = Config.WEBHOOK
+        self.chat_controller = ChatController()
+        self.usuario_controller = UsuarioController()
+
+    async def process_message(self, webhook_data: dict) -> None:
+        try:
+            # Extraer el mensaje y datos del usuario desde el webhook de WhatsApp
+            entry = webhook_data.get("entry", [{}])[0]
+            changes = entry.get("changes", [{}])[0]
+            value = changes.get("value", {})
+            messages = value.get("messages", [{}])
+            if not messages:
+                logger.warning("No se encontró mensaje en el webhook")
+                return
+            message = messages[0]
+            text = message.get("text", {}).get("body")
+            wa_user = message.get("from")
+            wa_id = wa_user
+            if not text:
+                logger.warning("Mensaje sin texto recibido")
+                return
+            logger.info(f"Procesando mensaje de WhatsApp {wa_id}: {text}")
+            usuario_id = await self._get_or_create_usuario(wa_id)
+            response_result = await self.chat_controller.process_message(
+                message=text,
+                user_id=usuario_id,
+                chat_external_id=f"whatsapp_{wa_id}"
+            )
+            if response_result["status"] == "success":
+                response_text = response_result["data"]["reply"]
+            else:
+                response_text = "🤖 Disculpa, tuve un problema procesando tu mensaje. ¿Podrías intentar de nuevo?"
+            await self._send_whatsapp_message(wa_id, response_text)
+            logger.info(f"Mensaje procesado exitosamente para usuario {wa_id}")
+        except Exception as e:
+            logger.error(f"Error procesando mensaje: {str(e)}")
+            if 'wa_id' in locals():
+                await self._send_error_message(wa_id)
+
+    async def _get_or_create_usuario(self, wa_id: str) -> int:
+        try:
+            usuarios = self.usuario_controller.get_all_usuarios()
+            existing_user = None
+            for usuario in usuarios:
+                if usuario.username == wa_id:
+                    existing_user = usuario
+                    break
+            if existing_user:
+                return existing_user.id
+            from app.models.usuario.UsuarioModel import UsuarioCreate
+            new_user = UsuarioCreate(
+                nombre=wa_id,
+                username=wa_id,
+                telefono=wa_id
+            )
+            created_user = self.usuario_controller.create_usuario(new_user)
+            logger.info(f"Usuario creado: {created_user.nombre} (ID: {created_user.id})")
+            return created_user.id
+        except Exception as e:
+            logger.error(f"Error obteniendo/creando usuario: {str(e)}")
+            raise
+
+    async def _send_whatsapp_message(self, wa_id: str, text: str) -> bool:
+        try:
+            url = f"https://graph.facebook.com/v18.0/{self.phone_id}/messages"
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": wa_id,
+                "type": "text",
+                "text": {"body": text}
+            }
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                response.raise_for_status()
+            logger.info(f"Mensaje enviado exitosamente a WhatsApp {wa_id}")
+            return True
+        except httpx.TimeoutException:
+            logger.error(f"Timeout enviando mensaje a WhatsApp {wa_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Error enviando mensaje a WhatsApp: {str(e)}")
+            return False
+
+    async def _send_error_message(self, wa_id: str) -> None:
+        error_message = (
+            "🚫 Ups! Algo salió mal. Nuestro equipo técnico ya está trabajando en solucionarlo. "
+            "Por favor, intenta de nuevo en unos minutos."
+        )
+        await self._send_whatsapp_message(wa_id, error_message)
