@@ -26,6 +26,7 @@ class WhatsAppController:
             changes = entry.get("changes", [{}])[0]
             value = changes.get("value", {})
             messages = value.get("messages", [{}])
+            contacts = value.get("contacts", [{}])
             if not messages:
                 logger.warning("No se encontró mensaje en el webhook")
                 return
@@ -33,11 +34,14 @@ class WhatsAppController:
             text = message.get("text", {}).get("body")
             wa_user = message.get("from")
             wa_id = wa_user
+            profile_name = None
+            if contacts and isinstance(contacts, list) and contacts[0].get("profile"):
+                profile_name = contacts[0]["profile"].get("name")
             if not text:
                 logger.warning("Mensaje sin texto recibido")
                 return
             logger.info(f"Procesando mensaje de WhatsApp {wa_id}: {text}")
-            usuario_id = await self._get_or_create_usuario(wa_id)
+            usuario_id = await self._get_or_create_usuario(wa_id, profile_name)
             response_result = await self.chat_controller.process_message(
                 message=text,
                 user_id=usuario_id,
@@ -58,19 +62,19 @@ class WhatsAppController:
             if 'wa_id' in locals():
                 await self._send_error_message(wa_id)
 
-    async def _get_or_create_usuario(self, wa_id: str) -> int:
+    async def _get_or_create_usuario(self, wa_id: str, profile_name: str = None) -> int:
         try:
             usuarios = self.usuario_controller.get_all_usuarios()
             existing_user = None
             for usuario in usuarios:
-                if usuario.username == wa_id:
+                if usuario.username == (profile_name if profile_name else wa_id):
                     existing_user = usuario
                     break
             if existing_user:
                 return existing_user.id
             from app.models.usuario.UsuarioModel import UsuarioCreate
             new_user = UsuarioCreate(
-                username=wa_id,
+                username=profile_name if profile_name else wa_id,
                 telefono=wa_id
             )
             created_user = self.usuario_controller.create_usuario(new_user)
