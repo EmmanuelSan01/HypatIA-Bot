@@ -44,7 +44,11 @@ class WhatsAppController:
                 chat_external_id=f"whatsapp_{wa_id}"
             )
             if response_result["status"] == "success":
-                response_text = response_result["data"]["reply"]
+                reply = response_result["data"]["reply"]
+                if isinstance(reply, str):
+                    response_text = reply
+                else:
+                    response_text = str(reply)
             else:
                 response_text = "🤖 Disculpa, tuve un problema procesando tu mensaje. ¿Podrías intentar de nuevo?"
             await self._send_whatsapp_message(wa_id, response_text)
@@ -66,12 +70,11 @@ class WhatsAppController:
                 return existing_user.id
             from app.models.usuario.UsuarioModel import UsuarioCreate
             new_user = UsuarioCreate(
-                nombre=wa_id,
                 username=wa_id,
                 telefono=wa_id
             )
             created_user = self.usuario_controller.create_usuario(new_user)
-            logger.info(f"Usuario creado: {created_user.nombre} (ID: {created_user.id})")
+            logger.info(f"Usuario creado: {created_user.username} (ID: {created_user.id})")
             return created_user.id
         except Exception as e:
             logger.error(f"Error obteniendo/creando usuario: {str(e)}")
@@ -79,7 +82,7 @@ class WhatsAppController:
 
     async def _send_whatsapp_message(self, wa_id: str, text: str) -> bool:
         try:
-            url = f"https://graph.facebook.com/v18.0/{self.phone_id}/messages"
+            url = f"https://graph.facebook.com/v23.0/{self.phone_id}/messages"
             headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json"
