@@ -12,12 +12,11 @@ class UsuarioController:
         try:
             with connection.cursor() as cursor:
                 sql = """
-                INSERT INTO usuario (nombre, username, telefono) 
-                VALUES (%s, %s, %s)
+                INSERT INTO usuario (username, telefono) 
+                VALUES (%s, %s)
                 """
-                cursor.execute(sql, (usuario.nombre, usuario.username, usuario.telefono))
+                cursor.execute(sql, (usuario.username, usuario.telefono))
                 connection.commit()
-                
                 usuario_id = cursor.lastrowid
                 return UsuarioController.get_usuario_by_id(usuario_id)
         finally:
@@ -57,27 +56,18 @@ class UsuarioController:
             with connection.cursor() as cursor:
                 update_fields = []
                 values = []
-                
-                if usuario.nombre is not None:
-                    update_fields.append("nombre = %s")
-                    values.append(usuario.nombre)
-                
                 if usuario.username is not None:
                     update_fields.append("username = %s")
                     values.append(usuario.username)
-                
                 if usuario.telefono is not None:
                     update_fields.append("telefono = %s")
                     values.append(usuario.telefono)
-                
                 if not update_fields:
                     return UsuarioController.get_usuario_by_id(usuario_id)
-                
                 values.append(usuario_id)
                 sql = f"UPDATE usuario SET {', '.join(update_fields)} WHERE id = %s"
                 cursor.execute(sql, values)
                 connection.commit()
-                
                 return UsuarioController.get_usuario_by_id(usuario_id)
         finally:
             connection.close()
