@@ -34,50 +34,72 @@ class ProductSearchTool(lr.ToolMessage):
     max_results: int = 5
     
     def handle(self) -> str:
-        """Ejecuta búsqueda de productos en Qdrant"""
+        """Responde sobre productos o categorías según los resultados de Qdrant."""
         try:
             qdrant_service = QdrantService()
-            
             from app.services.embedding import EmbeddingService
             embedding_service = EmbeddingService()
             query_embedding = embedding_service.encode_query(self.query)
-            
-            # Aplicar filtros si se especifica categoría
-            filters = {}
-            if self.category:
-                filters["categoria"] = self.category
-            
+
             # Buscar documentos similares
             results = qdrant_service.search_similar(
-                query_embedding, 
-                limit=self.max_results,
-                filters=filters
+                query_embedding,
+                limit=self.max_results
             )
-            
+
             if not results:
-                return "No se encontraron productos que coincidan con tu búsqueda."
-            
+                return "No se encontraron resultados que coincidan con tu búsqueda."
+
+            # Determinar el tipo de información predominante en los resultados
+            tipo_predominante = None
+            tipo_count = {"producto": 0, "categoria": 0, "promocion": 0}
+            for result in results:
+                tipo = result.get("tipo") or result.get("metadata", {}).get("type")
+                if tipo in tipo_count:
+                    tipo_count[tipo] += 1
+            tipo_predominante = max(tipo_count, key=tipo_count.get) if any(tipo_count.values()) else None
+
             formatted_results = []
             for result in results:
+                tipo = result.get("tipo") or result.get("metadata", {}).get("type")
                 payload = result.get("payload", {})
-                score = result.get("score", 0)
-                
                 disponible_final = payload.get("disponible", False)
-                
-                logger.debug(f"Product {payload.get('nombre', 'N/A')}: disponible={disponible_final}")
-                
-                formatted_results.append({
-                    "nombre": payload.get("nombre", "N/A"),
-                    "descripcion": payload.get("descripcion", "N/A"),
-                    "precio": payload.get("precio", "N/A"),
-                    "categoria": payload.get("categoria", "N/A"),
-                    "disponible": disponible_final,  # Usar valor directo del payload
-                    "promociones_activas": payload.get("promociones_activas", ""),
-                    "relevance_score": score
-                })
-            
-            return str(formatted_results)
-            
+
+                if tipo_predominante == "categoria" and tipo == "categoria":
+                    # Responder sobre categoría
+                    formatted_result = (
+                        f"Categoría: {payload.get('nombre', 'N/A')}\n"
+                        f"Descripción: {payload.get('descripcion', 'N/A')}\n"
+                    )
+                    formatted_results.append(formatted_result)
+                elif tipo_predominante == "producto" and tipo == "producto":
+                    # Responder sobre producto sin mencionar categoría
+                    formatted_result = (
+                        f"Producto: {payload.get('nombre', 'N/A')}\n"
+                        f"Descripción: {payload.get('descripcion', 'N/A')}\n"
+                        f"Precio: ${payload.get('precio', 'N/A')}\n"
+                        f"Color: {payload.get('color', 'N/A')}\n"
+                        f"Stock: {payload.get('stock', 'N/A')} unidades\n"
+                        f"Disponible: {'Sí' if disponible_final else 'No'}\n"
+                    )
+                    promociones = payload.get('promociones_activas', '')
+                    if promociones:
+                        formatted_result += f"Promociones activas: {promociones}\n"
+                    formatted_results.append(formatted_result)
+                elif tipo_predominante == "promocion" and tipo == "promocion":
+                    # Responder sobre promoción
+                    formatted_result = (
+                        f"Promoción: {payload.get('nombre', 'N/A')}\n"
+                        f"Descripción: {payload.get('descripcion', 'N/A')}\n"
+                        f"Descuento: {payload.get('descuento', 'N/A')}%\n"
+                    )
+                    formatted_results.append(formatted_result)
+
+            if not formatted_results:
+                return "No se encontraron resultados que coincidan con tu búsqueda."
+
+            return "\n---\n".join(formatted_results)
+
         except Exception as e:
             logger.error(f"Error in ProductSearchTool: {str(e)}")
             return f"Error ejecutando búsqueda: {str(e)}"
@@ -481,18 +503,14 @@ class MainBaekhoAgent(ChatAgent):
                                   conversation_context: Optional[Dict] = None) -> str:
         """Maneja mensaje de usuario orquestando múltiples agentes"""
         try:
-            # Rastrear con Analytics Agent
             self.analytics_agent.track_conversation(message, "")
-            
             sales_response = self.sales_agent.handle_message_fallback(message, user_id)
-            
-            # Handle phone number detection and validation
+
             if "PHONE_DETECTED:" in sales_response:
                 phone_number = sales_response.split("PHONE_DETECTED:VALID:")[1]
                 if user_id:
                     save_tool = SavePhoneTool(user_id=user_id, phone_number=phone_number)
                     save_result = save_tool.handle()
-                    
                     if save_result.startswith("SAVED:"):
                         saved_phone = save_result.split("SAVED:")[1]
                         return f"¡Perfecto! He recibido y guardado tu número de teléfono {saved_phone}. 📞✨"
@@ -500,46 +518,41 @@ class MainBaekhoAgent(ChatAgent):
                         return "He recibido tu número de teléfono. 📞"
                 else:
                     return "He recibido tu número de teléfono. 📞"
-            
+
             elif "PHONE_INVALID:" in sales_response:
                 parts = sales_response.split("PHONE_INVALID:")[1].split("|CURRENT:")
                 error_msg = parts[0]
                 current_phone = parts[1] if len(parts) > 1 else "ninguno registrado"
-                
                 response = f"Parece que el número que ingresaste no es correcto. {error_msg}. Por favor, envíalo nuevamente. 📱"
                 if current_phone != "ninguno registrado":
                     response += f"\n\nTu número actual registrado es: {current_phone}"
                 else:
                     response += f"\n\nActualmente no tienes ningún número registrado."
-                
                 return response
-            
-            # 1. Consultar Knowledge Agent para obtener contexto
+
             logger.info("Consultando Knowledge Agent...")
             knowledge_response = self.knowledge_agent.handle_message_fallback(message)
-            
+
             phone_status_for_context = ""
             if user_id:
                 check_phone_tool = CheckUserPhoneTool(user_id=user_id)
                 phone_check_result = check_phone_tool.handle()
-                
                 if phone_check_result.startswith("HAS_PHONE:"):
                     phone_status_for_context = "USER_HAS_PHONE_REGISTERED"
                 else:
                     phone_status_for_context = "USER_NO_PHONE_REGISTERED"
-            
-            # 2. Generate final response combining information
+
             context_prompt = f"""
             Consulta del usuario: {message}
-            
+
             Información de productos encontrada:
             {knowledge_response}
-            
+
             Recomendaciones de ventas:
             {sales_response}
-            
+
             Estado actual del teléfono del usuario: {phone_status_for_context}
-            
+
             INSTRUCCIONES CRÍTICAS PARA DISPONIBILIDAD:
             - La información de productos incluye el campo 'disponible' que indica la disponibilidad
             - Si 'disponible' es True, el producto ESTÁ DISPONIBLE para compra
@@ -547,25 +560,43 @@ class MainBaekhoAgent(ChatAgent):
             - Responde con precisión sobre la disponibilidad basándote en este campo booleano
             - NO asumas que no hay disponibilidad si no tienes información clara
             - La cantidad exacta de unidades no es relevante para el cliente
-            
+
             INSTRUCCIONES CRÍTICAS PARA SOLICITAR TELÉFONO:
             - Si el estado actual del teléfono es "USER_HAS_PHONE_REGISTERED", NUNCA solicites el número de teléfono
             - Si el estado actual del teléfono es "USER_NO_PHONE_REGISTERED" Y detectas intención de compra, entonces SÍ solicita el número de teléfono
             - Si detectas "PURCHASE_INTENT_DETECTED" en las recomendaciones de ventas pero el estado es "USER_HAS_PHONE_REGISTERED", NO solicites el teléfono
             - Si detectas "PURCHASE_INTENT_DETECTED_WITH_PHONE" en las recomendaciones de ventas, NO solicites el teléfono
             - SIEMPRE verifica el estado actual del teléfono antes de decidir si solicitarlo o no
-            
+
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
             Mantén el tono amigable y comercial de BaekhoBot 🥋.
             """
-            
-            final_response = await self.llm_response_async(context_prompt)
-            
-            # Rastrear respuesta con Analytics Agent
+            try:
+                final_response = await self.llm_response_async(context_prompt)
+            except Exception as e:
+                error_msg = str(e)
+                if "shorten prompt history" in error_msg or "token len" in error_msg:
+                    logger.error("[CONTEXT RESET] Se alcanzó el límite de tokens. Limpiando contexto del agente.")
+                    # Limpiar historial/conversación del agente
+                    if hasattr(self, 'conversation_history'):
+                        self.conversation_history = []
+                    # Si KnowledgeAgent y SalesAgent tienen historial, también limpiarlo
+                    if hasattr(self.knowledge_agent, 'conversation_history'):
+                        self.knowledge_agent.conversation_history = []
+                    if hasattr(self.sales_agent, 'conversation_history'):
+                        self.sales_agent.conversation_history = []
+                    # Intentar de nuevo con contexto limpio
+                    try:
+                        final_response = await self.llm_response_async(context_prompt)
+                    except Exception as e2:
+                        logger.error(f"[CONTEXT RESET] Error tras limpiar contexto: {str(e2)}")
+                        return "El contexto de la conversación era demasiado largo y ha sido reiniciado. Por favor, intenta de nuevo tu consulta."
+                else:
+                    logger.error(f"Error in MainBaekhoAgent: {error_msg}")
+                    return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
+
             self.analytics_agent.track_conversation(message, final_response)
-            
             return final_response
-            
         except Exception as e:
             logger.error(f"Error in MainBaekhoAgent: {str(e)}")
             return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
