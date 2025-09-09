@@ -24,11 +24,11 @@ class DataSyncService:
             self.qdrant_service.create_collection_if_not_exists()
             
             # Sync all data types
-            productos_count = await self._sync_productos()
+            cursos_count = await self._sync_cursos()
             categorias_count = await self._sync_categorias()
             promociones_count = await self._sync_promociones()
             
-            total_synced = productos_count + categorias_count + promociones_count
+            total_synced = cursos_count + categorias_count + promociones_count
             
             logger.info(f"Synchronization completed. Total documents: {total_synced}")
             
@@ -37,7 +37,7 @@ class DataSyncService:
                 "message": "Sincronización completa exitosa",
                 "synced_count": total_synced,
                 "details": {
-                    "productos": productos_count,
+                    "cursos": cursos_count,
                     "categorias": categorias_count,
                     "promociones": promociones_count
                 },
@@ -64,11 +64,11 @@ class DataSyncService:
                 last_sync_time = datetime.now() - timedelta(hours=24)
             
             # Sync only modified data
-            productos_count = await self._sync_productos_incremental(last_sync_time)
+            cursos_count = await self._sync_cursos_incremental(last_sync_time)
             categorias_count = await self._sync_categorias_incremental(last_sync_time)
             promociones_count = await self._sync_promociones_incremental(last_sync_time)
             
-            total_synced = productos_count + categorias_count + promociones_count
+            total_synced = cursos_count + categorias_count + promociones_count
             
             return {
                 "status": "success",
@@ -87,37 +87,37 @@ class DataSyncService:
                 "errors": [str(e)]
             }
     
-    async def _sync_productos(self) -> int:
-        """Sync all productos to Qdrant"""
+    async def _sync_cursos(self) -> int:
+        """Sync all cursos to Qdrant"""
         connection = get_sync_connection()
         try:
             with connection.cursor() as cursor:
                 sql = """
-                SELECT p.*, c.nombre as categoria_nombre,
+                SELECT c.*, cat.nombre as categoria_nombre,
                        GROUP_CONCAT(DISTINCT CONCAT(pr.descripcion, ':', pr.descuentoPorcentaje, '%') SEPARATOR ' | ') as promociones_activas
-                FROM producto p 
-                LEFT JOIN categoria c ON p.categoriaId = c.id
-                LEFT JOIN promocionProducto pp ON p.id = pp.productoId
-                LEFT JOIN promocion pr ON pp.promocionId = pr.id 
+                FROM curso c 
+                LEFT JOIN categoria cat ON c.categoriaId = cat.id
+                LEFT JOIN promocionCurso pc ON c.id = pc.cursoId
+                LEFT JOIN promocion pr ON pc.promocionId = pr.id 
                     AND pr.fechaInicio <= CURDATE() 
                     AND pr.fechaFin >= CURDATE()
-                GROUP BY p.id, p.nombre, p.descripcion, p.precio, p.stock, p.talla, p.color, p.categoriaId, c.nombre
+                GROUP BY c.id, c.titulo, c.descripcion, c.precio, c.cupo, c.nivel, c.idioma, c.categoriaId, cat.nombre
                 """
                 cursor.execute(sql)
-                productos = cursor.fetchall()
+                cursos = cursor.fetchall()
                 
                 synced_count = 0
-                for producto in productos:
+                for curso in cursos:
                     # Create searchable text content
-                    content = self._create_producto_content(producto)
+                    content = self._create_curso_content(curso)
                     
                     # Generate embedding
                     embedding = await self.embedding_service.generate_embedding(content)
                     
-                    doc_id = int(producto['id'])
+                    doc_id = int(curso['id'])
                     
-                    # Corregir cálculo de disponibilidad basado en stock
-                    disponible = int(producto.get('stock', 0)) > 0
+                    # Calcular disponibilidad basado en cupo
+                    disponible = int(curso.get('cupo', 0)) > 0
                     
                     # Store in Qdrant
                     await self.qdrant_service.upsert_document(
@@ -125,18 +125,18 @@ class DataSyncService:
                         content=content,
                         embedding=embedding,
                         metadata={
-                            "type": "producto",
-                            "id": producto['id'],
-                            "nombre": producto['nombre'],
-                            "categoria": producto.get('categoria_nombre', ''),
-                            "categoria_id": producto['categoriaId'],
-                            "precio": float(producto['precio']) if producto['precio'] else 0.0,
-                            "disponible": disponible,  # Usar el valor booleano calculado
-                            "descripcion": producto.get('descripcion', ''),
-                            "talla": producto.get('talla', ''),
-                            "color": producto.get('color', ''),
-                            "stock": int(producto.get('stock', 0)),
-                            "promociones_activas": producto.get('promociones_activas', '') or ''
+                            "type": "curso",
+                            "id": curso['id'],
+                            "titulo": curso['titulo'],
+                            "categoria": curso.get('categoria_nombre', ''),
+                            "categoria_id": curso['categoriaId'],
+                            "precio": float(curso['precio']) if curso['precio'] else 0.0,
+                            "disponible": disponible,
+                            "descripcion": curso.get('descripcion', ''),
+                            "nivel": curso.get('nivel', ''),
+                            "idioma": curso.get('idioma', ''),
+                            "cupo": int(curso.get('cupo', 0)),
+                            "promociones_activas": curso.get('promociones_activas', '') or ''
                         }
                     )
                     synced_count += 1
@@ -187,12 +187,12 @@ class DataSyncService:
             with connection.cursor() as cursor:
                 sql = """
                 SELECT pr.*, 
-                       GROUP_CONCAT(DISTINCT p.nombre SEPARATOR ', ') as productos_nombres,
-                       GROUP_CONCAT(DISTINCT CONCAT(p.nombre, ' ($', p.precio, ')') SEPARATOR ', ') as productos_detalles,
-                       COUNT(DISTINCT p.id) as total_productos
+                       GROUP_CONCAT(DISTINCT c.titulo SEPARATOR ', ') as cursos_nombres,
+                       GROUP_CONCAT(DISTINCT CONCAT(c.titulo, ' ($', c.precio, ')') SEPARATOR ', ') as cursos_detalles,
+                       COUNT(DISTINCT c.id) as total_cursos
                 FROM promocion pr
-                LEFT JOIN promocionProducto pp ON pr.id = pp.promocionId
-                LEFT JOIN producto p ON pp.productoId = p.id
+                LEFT JOIN promocionCurso pc ON pr.id = pc.promocionId
+                LEFT JOIN curso c ON pc.cursoId = c.id
                 GROUP BY pr.id
                 """
                 cursor.execute(sql)
@@ -221,9 +221,9 @@ class DataSyncService:
                             "fecha_inicio": promocion['fechaInicio'].isoformat() if promocion['fechaInicio'] else None,
                             "fecha_fin": promocion['fechaFin'].isoformat() if promocion['fechaFin'] else None,
                             "activa": is_active,
-                            "productos_nombres": promocion.get('productos_nombres', '') or '',
-                            "productos_detalles": promocion.get('productos_detalles', '') or '',
-                            "total_productos": promocion.get('total_productos', 0) or 0
+                            "cursos_nombres": promocion.get('cursos_nombres', '') or '',
+                            "cursos_detalles": promocion.get('cursos_detalles', '') or '',
+                            "total_cursos": promocion.get('total_cursos', 0) or 0
                         }
                     )
                     synced_count += 1
@@ -233,25 +233,25 @@ class DataSyncService:
         finally:
             connection.close()
 
-    def _create_producto_content(self, producto: Dict) -> str:
-        """Create searchable content for producto"""
-        # Calcular disponibilidad basada en stock
-        stock_value = int(producto.get('stock', 0))
-        disponibilidad_texto = 'Sí' if stock_value > 0 else 'No'
+    def _create_curso_content(self, curso: Dict) -> str:
+        """Create searchable content for curso"""
+        # Calcular disponibilidad basada en cupo
+        cupo_value = int(curso.get('cupo', 0))
+        disponibilidad_texto = 'Sí' if cupo_value > 0 else 'No'
         
         parts = [
-            f"Producto: {producto['nombre']}",
-            f"Descripción: {producto.get('descripcion', '')}" if producto.get('descripcion') else "",
-            f"Categoría: {producto.get('categoria_nombre', '')}" if producto.get('categoria_nombre') else "",
-            f"Precio: ${producto['precio']}" if producto['precio'] else "",
-            f"Talla: {producto.get('talla', '')}" if producto.get('talla') else "",
-            f"Color: {producto.get('color', '')}" if producto.get('color') else "",
-            f"Stock: {stock_value} unidades",
+            f"Curso: {curso['titulo']}",
+            f"Descripción: {curso.get('descripcion', '')}" if curso.get('descripcion') else "",
+            f"Categoría: {curso.get('categoria_nombre', '')}" if curso.get('categoria_nombre') else "",
+            f"Precio: ${curso['precio']}" if curso['precio'] else "",
+            f"Nivel: {curso.get('nivel', '')}" if curso.get('nivel') else "",
+            f"Idioma: {curso.get('idioma', '')}" if curso.get('idioma') else "",
+            f"Cupo: {cupo_value} estudiantes",
             f"Disponible: {disponibilidad_texto}"
         ]
         
-        if producto.get('promociones_activas'):
-            parts.append(f"Promociones activas: {producto['promociones_activas']}")
+        if curso.get('promociones_activas'):
+            parts.append(f"Promociones activas: {curso['promociones_activas']}")
         
         return " | ".join([p for p in parts if p])
 
@@ -272,62 +272,62 @@ class DataSyncService:
             f"Válida hasta: {promocion['fechaFin']}" if promocion['fechaFin'] else ""
         ]
         
-        if promocion.get('productos_nombres'):
-            parts.append(f"Productos en promoción: {promocion['productos_nombres']}")
-        if promocion.get('productos_detalles'):
-            parts.append(f"Detalles de productos: {promocion['productos_detalles']}")
-        if promocion.get('total_productos', 0) > 0:
-            parts.append(f"Total de productos: {promocion['total_productos']}")
+        if promocion.get('cursos_nombres'):
+            parts.append(f"Cursos en promoción: {promocion['cursos_nombres']}")
+        if promocion.get('cursos_detalles'):
+            parts.append(f"Detalles de cursos: {promocion['cursos_detalles']}")
+        if promocion.get('total_cursos', 0) > 0:
+            parts.append(f"Total de cursos: {promocion['total_cursos']}")
         
         return " | ".join([p for p in parts if p])
     
-    async def _sync_productos_incremental(self, since: datetime) -> int:
-        """Sync productos modified since timestamp"""
+    async def _sync_cursos_incremental(self, since: datetime) -> int:
+        """Sync cursos modified since timestamp"""
         connection = get_sync_connection()
         try:
             with connection.cursor() as cursor:
                 sql = """
-                SELECT p.*, c.nombre as categoria_nombre,
+                SELECT c.*, cat.nombre as categoria_nombre,
                        GROUP_CONCAT(DISTINCT CONCAT(pr.descripcion, ':', pr.descuentoPorcentaje, '%') SEPARATOR ' | ') as promociones_activas
-                FROM producto p 
-                LEFT JOIN categoria c ON p.categoriaId = c.id
-                LEFT JOIN promocionProducto pp ON p.id = pp.productoId
-                LEFT JOIN promocion pr ON pp.promocionId = pr.id 
+                FROM curso c 
+                LEFT JOIN categoria cat ON c.categoriaId = cat.id
+                LEFT JOIN promocionCurso pc ON c.id = pc.cursoId
+                LEFT JOIN promocion pr ON pc.promocionId = pr.id 
                     AND pr.fechaInicio <= CURDATE() 
                     AND pr.fechaFin >= CURDATE()
-                WHERE p.fechaActualizacion >= %s
-                GROUP BY p.id, p.nombre, p.descripcion, p.precio, p.stock, p.talla, p.color, p.categoriaId, c.nombre
+                WHERE c.fechaActualizacion >= %s
+                GROUP BY c.id, c.titulo, c.descripcion, c.precio, c.cupo, c.nivel, c.idioma, c.categoriaId, cat.nombre
                 """
                 cursor.execute(sql, (since,))
-                productos = cursor.fetchall()
+                cursos = cursor.fetchall()
                 
                 synced_count = 0
-                for producto in productos:
-                    content = self._create_producto_content(producto)
+                for curso in cursos:
+                    content = self._create_curso_content(curso)
                     embedding = await self.embedding_service.generate_embedding(content)
                     
-                    doc_id = int(producto['id'])
+                    doc_id = int(curso['id'])
                     
-                    # Corregir cálculo de disponibilidad basado en stock
-                    disponible = int(producto.get('stock', 0)) > 0
+                    # Calcular disponibilidad basado en cupo
+                    disponible = int(curso.get('cupo', 0)) > 0
                     
                     await self.qdrant_service.upsert_document(
                         doc_id=doc_id,
                         content=content,
                         embedding=embedding,
                         metadata={
-                            "type": "producto",
-                            "id": producto['id'],
-                            "nombre": producto['nombre'],
-                            "categoria": producto.get('categoria_nombre', ''),
-                            "categoria_id": producto['categoriaId'],
-                            "precio": float(producto['precio']) if producto['precio'] else 0.0,
-                            "disponible": disponible,  # Usar el valor booleano calculado
-                            "descripcion": producto.get('descripcion', ''),
-                            "talla": producto.get('talla', ''),
-                            "color": producto.get('color', ''),
-                            "stock": int(producto.get('stock', 0)),
-                            "promociones_activas": producto.get('promociones_activas', '') or ''
+                            "type": "curso",
+                            "id": curso['id'],
+                            "titulo": curso['titulo'],
+                            "categoria": curso.get('categoria_nombre', ''),
+                            "categoria_id": curso['categoriaId'],
+                            "precio": float(curso['precio']) if curso['precio'] else 0.0,
+                            "disponible": disponible,
+                            "descripcion": curso.get('descripcion', ''),
+                            "nivel": curso.get('nivel', ''),
+                            "idioma": curso.get('idioma', ''),
+                            "cupo": int(curso.get('cupo', 0)),
+                            "promociones_activas": curso.get('promociones_activas', '') or ''
                         }
                     )
                     synced_count += 1
@@ -376,12 +376,12 @@ class DataSyncService:
             with connection.cursor() as cursor:
                 sql = """
                 SELECT pr.*, 
-                       GROUP_CONCAT(DISTINCT p.nombre SEPARATOR ', ') as productos_nombres,
-                       GROUP_CONCAT(DISTINCT CONCAT(p.nombre, ' ($', p.precio, ')') SEPARATOR ', ') as productos_detalles,
-                       COUNT(DISTINCT p.id) as total_productos
+                       GROUP_CONCAT(DISTINCT c.titulo SEPARATOR ', ') as cursos_nombres,
+                       GROUP_CONCAT(DISTINCT CONCAT(c.titulo, ' ($', c.precio, ')') SEPARATOR ', ') as cursos_detalles,
+                       COUNT(DISTINCT c.id) as total_cursos
                 FROM promocion pr
-                LEFT JOIN promocionProducto pp ON pr.id = pp.promocionId
-                LEFT JOIN producto p ON pp.productoId = p.id
+                LEFT JOIN promocionCurso pc ON pr.id = pc.promocionId
+                LEFT JOIN curso c ON pc.cursoId = c.id
                 WHERE pr.fechaInicio <= CURDATE() 
                     AND pr.fechaFin >= CURDATE()
                 GROUP BY pr.id
@@ -412,9 +412,9 @@ class DataSyncService:
                             "fecha_inicio": promocion['fechaInicio'].isoformat() if promocion['fechaInicio'] else None,
                             "fecha_fin": promocion['fechaFin'].isoformat() if promocion['fechaFin'] else None,
                             "activa": is_active,
-                            "productos_nombres": promocion.get('productos_nombres', '') or '',
-                            "productos_detalles": promocion.get('productos_detalles', '') or '',
-                            "total_productos": promocion.get('total_productos', 0) or 0
+                            "cursos_nombres": promocion.get('cursos_nombres', '') or '',
+                            "cursos_detalles": promocion.get('cursos_detalles', '') or '',
+                            "total_cursos": promocion.get('total_cursos', 0) or 0
                         }
                     )
                     synced_count += 1

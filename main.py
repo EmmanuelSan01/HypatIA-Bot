@@ -4,13 +4,12 @@ from app.config import settings
 
 # Import all route modules
 from app.routes.categoria.CategoriaRoutes import router as categoria_router
-from app.routes.producto.ProductoRoutes import router as producto_router
+from app.routes.curso.CursoRoutes import router as curso_router
 from app.routes.promocion.PromocionRoutes import router as promocion_router
+from app.routes.promocionCurso.PromocionCursoRoutes import router as promocion_curso_router
 from app.routes.usuario.UsuarioRoutes import router as usuario_router
 from app.routes.chat.ChatRoutes import router as chat_router, admin_router as chat_admin_router, messages_router
 from app.routes.ingest.IngestRoutes import router as ingest_router
-
-from app.routes.telegram.TelegramRoutes import telegram_router
 from app.routes.whatsapp.WhatsAppWebhookRoutes import whatsapp_router as whatsapp_webhook_router
 
 from app.services.qdrant import QdrantService
@@ -42,15 +41,14 @@ app.add_middleware(
 
 # Include all routers
 app.include_router(categoria_router, prefix="/api/v1")
-app.include_router(producto_router, prefix="/api/v1")
+app.include_router(curso_router, prefix="/api/v1")
 app.include_router(promocion_router, prefix="/api/v1")
+app.include_router(promocion_curso_router, prefix="/api/v1")
 app.include_router(usuario_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(chat_admin_router, prefix="/api/v1")
 app.include_router(messages_router, prefix="/api/v1")  # Nueva ruta para mensajes
 app.include_router(ingest_router, prefix="/api/v1")
-
-app.include_router(telegram_router)
 app.include_router(whatsapp_webhook_router)
 
 langroid_service = None
@@ -162,12 +160,12 @@ async def get_assistant_info():
     """Información del asistente comercial"""
     global langroid_service
     base_info = {
-        "name": "BaekhoBot 🥋",
-        "type": "multi_agent_commercial_assistant",
+        "name": "HypatIA 🎓",
+        "type": "multi_agent_educational_assistant",
         "capabilities": [
             "multi_agent_orchestration",
-            "semantic_product_search",
-            "sales_recommendations", 
+            "semantic_course_search",
+            "educational_recommendations", 
             "conversation_analytics",
             "persistent_conversations",
             "chat_history",

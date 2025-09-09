@@ -26,15 +26,15 @@ logging.getLogger("langroid").setLevel(logging.ERROR)
 # ============================
 
 class ProductSearchTool(lr.ToolMessage):
-    """Herramienta para búsqueda de productos"""
-    request: str = "product_search"
-    purpose: str = "Buscar productos en la base de datos usando embeddings vectoriales"
+    """Herramienta para búsqueda de cursos"""
+    request: str = "course_search"
+    purpose: str = "Buscar cursos en la base de datos usando embeddings vectoriales"
     query: str
     category: Optional[str] = None
     max_results: int = 5
     
     def handle(self) -> str:
-        """Responde sobre productos o categorías según los resultados de Qdrant."""
+        """Responde sobre cursos o categorías según los resultados de Qdrant."""
         try:
             qdrant_service = QdrantService()
             from app.services.embedding import EmbeddingService
@@ -52,7 +52,7 @@ class ProductSearchTool(lr.ToolMessage):
 
             # Determinar el tipo de información predominante en los resultados
             tipo_predominante = None
-            tipo_count = {"producto": 0, "categoria": 0, "promocion": 0}
+            tipo_count = {"curso": 0, "categoria": 0, "promocion": 0}
             for result in results:
                 tipo = result.get("tipo") or result.get("metadata", {}).get("type")
                 if tipo in tipo_count:
@@ -72,14 +72,15 @@ class ProductSearchTool(lr.ToolMessage):
                         f"Descripción: {payload.get('descripcion', 'N/A')}\n"
                     )
                     formatted_results.append(formatted_result)
-                elif tipo_predominante == "producto" and tipo == "producto":
-                    # Responder sobre producto sin mencionar categoría
+                elif tipo_predominante == "curso" and tipo == "curso":
+                    # Responder sobre curso sin mencionar categoría
                     formatted_result = (
-                        f"Producto: {payload.get('nombre', 'N/A')}\n"
+                        f"Curso: {payload.get('titulo', 'N/A')}\n"
                         f"Descripción: {payload.get('descripcion', 'N/A')}\n"
+                        f"Nivel: {payload.get('nivel', 'N/A')}\n"
+                        f"Idioma: {payload.get('idioma', 'N/A')}\n"
                         f"Precio: ${payload.get('precio', 'N/A')}\n"
-                        f"Color: {payload.get('color', 'N/A')}\n"
-                        f"Stock: {payload.get('stock', 'N/A')} unidades\n"
+                        f"Cupo disponible: {payload.get('cupo', 'N/A')} estudiantes\n"
                         f"Disponible: {'Sí' if disponible_final else 'No'}\n"
                     )
                     promociones = payload.get('promociones_activas', '')
@@ -91,7 +92,7 @@ class ProductSearchTool(lr.ToolMessage):
                     formatted_result = (
                         f"Promoción: {payload.get('nombre', 'N/A')}\n"
                         f"Descripción: {payload.get('descripcion', 'N/A')}\n"
-                        f"Descuento: {payload.get('descuento', 'N/A')}%\n"
+                        f"Descuento: {payload.get('descuentoPorcentaje', 'N/A')}%\n"
                     )
                     formatted_results.append(formatted_result)
 
@@ -101,7 +102,7 @@ class ProductSearchTool(lr.ToolMessage):
             return "\n---\n".join(formatted_results)
 
         except Exception as e:
-            logger.error(f"Error in ProductSearchTool: {str(e)}")
+            logger.error(f"Error in CourseSearchTool: {str(e)}")
             return f"Error ejecutando búsqueda: {str(e)}"
 
 
@@ -265,15 +266,19 @@ class SalesAgent(ChatAgent):
     def handle_message_fallback(self, msg: str, user_id: Optional[int] = None) -> str:
         """Maneja lógica de ventas"""
         try:
-            # Analizar mensaje para oportunidades de venta
+            # Analizar mensaje para oportunidades de recomendación de cursos
             recommendations = []
-            # Keywords para productos complementarios
-            if "uniforme" in msg.lower():
-                recommendations.append("¿Has considerado también un cinturón o protecciones?")
-            elif "cinturon" in msg.lower():
-                recommendations.append("¿Te interesaría ver nuestros uniformes a juego?")
-            elif "proteccion" in msg.lower():
-                recommendations.append("¿Necesitas también guantes o espinilleras?")
+            # Keywords para cursos complementarios
+            if "principiante" in msg.lower() or "básico" in msg.lower():
+                recommendations.append("¿Te interesaría ver nuestros cursos de nivel intermedio después?")
+            elif "intermedio" in msg.lower() or "avanzado" in msg.lower():
+                recommendations.append("¿Has considerado complementar con cursos de aplicaciones prácticas?")
+            elif "deep learning" in msg.lower():
+                recommendations.append("¿Te gustaría explorar también nuestros cursos de Machine Learning?")
+            elif "machine learning" in msg.lower():
+                recommendations.append("¿Has pensado en profundizar con nuestros cursos de Deep Learning?")
+            elif "python" in msg.lower():
+                recommendations.append("¿Te interesaría ver cursos de frameworks específicos como TensorFlow o PyTorch?")
             if recommendations:
                 return f"Sugerencias adicionales: {' '.join(recommendations)}"
             else:
@@ -311,7 +316,7 @@ class AnalyticsAgent(ChatAgent):
         return self.conversation_metrics.copy()
 
 
-class MainBaekhoAgent(ChatAgent):
+class MainHypatiaAgent(ChatAgent):
     """Agente principal que orquesta el sistema multi-agente"""
     
     def __init__(self, config: ChatAgentConfig):
@@ -391,7 +396,7 @@ class MainBaekhoAgent(ChatAgent):
             {sales_response}
 
             Basándote en esta información, proporciona una respuesta completa y útil al usuario.
-            Mantén el tono amigable y comercial de BaekhoBot 🥋.
+            Mantén el tono amigable y comercial de DeepLearning.IA 🥋.
             """
             try:
                 final_response = await self.llm_response_async(context_prompt)
@@ -414,39 +419,39 @@ class MainBaekhoAgent(ChatAgent):
                         logger.error(f"[CONTEXT RESET] Error tras limpiar contexto: {str(e2)}")
                         return "El contexto de la conversación era demasiado largo y ha sido reiniciado. Por favor, intenta de nuevo tu consulta."
                 else:
-                    logger.error(f"Error in MainBaekhoAgent: {error_msg}")
+                    logger.error(f"Error in MainHypatiaAgent: {error_msg}")
                     return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
 
             self.analytics_agent.track_conversation(message, final_response)
             return final_response
         except Exception as e:
-            logger.error(f"Error in MainBaekhoAgent: {str(e)}")
+            logger.error(f"Error in MainHypatiaAgent: {str(e)}")
             return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
 
 # ============================
 # FACTORY PARA CREAR AGENTES
 # ============================
 
-class BaekhoAgentFactory:
+class HypatiaAgentFactory:
     """Factory para crear y configurar agentes Langroid"""
     
     @staticmethod
-    def create_main_agent() -> MainBaekhoAgent:
+    def create_main_agent() -> MainHypatiaAgent:
         """Crea el agente principal configurado"""
         config = ChatAgentConfig(
             llm=langroid_config.LLM_CONFIG,
             system_message=langroid_config.SYSTEM_PROMPTS["main_agent"],
-            name="BaekhoBot",
+            name="HypatIA",
         )
         
-        return MainBaekhoAgent(config)
+        return MainHypatiaAgent(config)
     
     @staticmethod
     def create_task_for_agent(agent: ChatAgent, user_message: str) -> Task:
         """Crea una tarea Langroid para el agente"""
         task = Task(
             agent=agent,
-            name="BaekhoConversation",
+            name="HypatiaConversation",
             system_message=agent.config.system_message,
             llm_delegate=True,
             single_round=False,

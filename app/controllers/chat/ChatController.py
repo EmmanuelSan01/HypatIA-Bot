@@ -4,13 +4,13 @@ from datetime import datetime
 from app.database import get_sync_connection
 from app.models.chat.ChatModel import ChatCreate, ChatUpdate, ChatResponse
 from app.models.mensaje.MensajeModel import MensajeCreate, MensajeResponse
-from app.services.langroid_service import LangroidAgentService, BaekhoLangroidAgent
+from app.services.langroid_service import LangroidAgentService, HypatiaLangroidAgent
 from app.services.data_sync import DataSyncService
 
 class ChatController:
     
     def __init__(self):
-        self.agent_service = BaekhoLangroidAgent()
+        self.agent_service = HypatiaLangroidAgent()
         self.langroid_service = LangroidAgentService()
         self.data_sync_service = DataSyncService()
     

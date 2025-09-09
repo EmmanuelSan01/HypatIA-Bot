@@ -118,7 +118,7 @@ class AgentService:
         Genera respuesta usando OpenAI con el contexto de la KB real
         """
         system_prompt = """
-        Eres BaekhoBot 🥋, asistente comercial especializado en productos de Taekwondo y artes marciales.
+        Eres HypatIA 🎓, asistente comercial especializado en productos de Taekwondo y artes marciales.
         
         INSTRUCCIONES IMPORTANTES:
         - SOLO usa información del contexto proporcionado (datos reales de la base de datos)
@@ -173,7 +173,7 @@ class AgentService:
 # Agente Principal (Orquestador)
 # ==============================
 
-class BaekhoAgent:
+class HypatiaAgent:
     """
     Agente principal que usa únicamente la knowledge base real de Qdrant
     """
@@ -195,7 +195,7 @@ class BaekhoAgent:
             return response
             
         except Exception as e:
-            logger.error(f"Error in BaekhoAgent.process_message: {str(e)}")
+            logger.error(f"Error in HypatiaAgent.process_message: {str(e)}")
             return "Hubo un error procesando tu mensaje. Por favor intenta de nuevo."
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -203,8 +203,8 @@ class BaekhoAgent:
         Información del modelo actual
         """
         return {
-            "model": "BaekhoBot RAG",
-            "version": "2.0",
+            "model": "HypatIA",
+            "version": "1.0",
             "knowledge_source": "MySQL + Qdrant Vector DB",
             "description": "Asistente comercial con información real de productos"
         }
