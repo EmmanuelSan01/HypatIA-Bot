@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="SportBot Backend API with Langroid Multi-Agent System, RAG capabilities, complete CRUD operations, and persistent chat system",
+    description="DeepLearning Backend API with Langroid Multi-Agent System, RAG capabilities, complete CRUD operations, and persistent chat system",
     debug=settings.DEBUG
 )
 
@@ -96,7 +96,7 @@ async def startup_event():
 def read_root():
     """Root endpoint"""
     return {
-        "message": "SportBot Backend API with Langroid Multi-Agent System",
+        "message": "DeepLearning Backend API with Langroid Multi-Agent System",
         "version": settings.VERSION,
         "status": "running",
         "features": [

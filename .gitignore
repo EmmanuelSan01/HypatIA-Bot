@@ -14,3 +14,6 @@ __pycache__/
 venv/
 .env/
 .venv/
+
+# Ignorar archivos de configuración de IDEs
+**/*devcontainer*

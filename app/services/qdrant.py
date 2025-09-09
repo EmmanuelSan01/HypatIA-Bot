@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection")
+QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "deeplearning_kb")
 QDRANT_ENABLED = os.getenv("QDRANT_ENABLED", "true").lower() == "true"
 
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-small")

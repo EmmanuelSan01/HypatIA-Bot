@@ -33,7 +33,7 @@ class LangroidConfig:
     # ===== CONFIGURACIÓN DE QDRANT =====
     VECTOR_STORE_CONFIG = QdrantDBConfig(
         cloud=False,  # Usar instancia local
-        collection_name= os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection"),
+        collection_name= os.getenv("QDRANT_COLLECTION_NAME", "deeplearning_kb"),
         host= os.getenv("QDRANT_HOST", "localhost"),
         port= int(os.getenv("QDRANT_PORT", "6333")),
         embedding=EMBEDDING_CONFIG,

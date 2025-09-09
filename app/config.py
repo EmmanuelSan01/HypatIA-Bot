@@ -6,10 +6,10 @@ from typing import Optional
 load_dotenv()
 
 class Settings:
-    """Configuración unificada para SportBot Assistant - Compatible con Docker y nuevas funcionalidades"""
+    """Configuración unificada para deeplearning Assistant - Compatible con Docker y nuevas funcionalidades"""
     
     # ===== CONFIGURACIÓN DE LA APLICACIÓN =====
-    APP_NAME: str = "SportBot Assistant"
+    APP_NAME: str = "deeplearning Assistant"
     VERSION: str = "1.0.0"
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
@@ -20,21 +20,21 @@ class Settings:
     
     # ===== CONFIGURACIÓN DE BASE DE DATOS =====
     # Configuración para Docker (por defecto)
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "mysql://root:admin@db:3306/sportbot_db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "mysql://root:admin@db:3306/deeplearning_db")
     
     # Configuración alternativa para desarrollo local (compatible con ambas ramas)
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
     DB_PORT: int = int(os.getenv("DB_PORT", "3307"))  # Puerto cambiado para evitar conflictos
     DB_USER: str = os.getenv("DB_USER", "root")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "admin")
-    DB_NAME: str = os.getenv("DB_NAME", "sportbot_db")
+    DB_NAME: str = os.getenv("DB_NAME", "deeplearning_db")
     DB_SSL_CA: str = os.getenv("CA_PATH", "")
     
     # ===== CONFIGURACIÓN DE QDRANT =====
     QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
     QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
     QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
-    QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION_NAME", "sportbot_collection")
+    QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION_NAME", "deeplearning_kb")
     
     
     # ===== CONFIGURACIÓN DE OPENAI/LLM =====
@@ -48,7 +48,7 @@ class Settings:
     # ===== CONFIGURACIÓN DE TELEGRAM =====
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_WEBHOOK_URL: str = os.getenv("TELEGRAM_WEBHOOK_URL", "")
-    BOT_NAME: str = os.getenv("BOT_NAME", "SportBot")
+    BOT_NAME: str = os.getenv("BOT_NAME", "deeplearning")
 
     # ===== CONFIGURACIÓN DE WHATSAPP =====
     APP_ID: str = os.getenv("APP_ID", "")
@@ -89,7 +89,7 @@ class Settings:
     @classmethod
     def get_database_url(cls) -> str:
         """Obtiene la URL de conexión a la base de datos (compatible con Docker y local)"""
-        if cls.DATABASE_URL and cls.DATABASE_URL != "mysql://root:admin@db:3306/sportbot_db":
+        if cls.DATABASE_URL and cls.DATABASE_URL != "mysql://root:admin@db:3306/deeplearning_db":
             return cls.DATABASE_URL
         
         # Construir URL desde componentes individuales
