@@ -31,20 +31,29 @@ class WhatsAppController:
             entry = webhook_data.get("entry", [{}])[0]
             changes = entry.get("changes", [{}])[0]
             value = changes.get("value", {})
-            messages = value.get("messages", [{}])
+            messages = value.get("messages", [])
             contacts = value.get("contacts", [{}])
-            if not messages:
-                logger.warning("No se encontró mensaje en el webhook")
+
+            # Solo procesar si hay mensajes y el tipo es 'text'
+            if not messages or not isinstance(messages, list) or len(messages) == 0:
+                logger.info("Evento recibido sin mensajes de usuario. Ignorando.")
                 return
             message = messages[0]
+            if message.get("type") != "text":
+                logger.info(f"Evento recibido de tipo '{message.get('type')}'. Solo se procesan mensajes de texto.")
+                return
             text = message.get("text", {}).get("body")
             wa_user = message.get("from")
             wa_id = wa_user
+            # Ignorar mensajes enviados por el propio bot para evitar bucles
+            if wa_id == self.phone_id:
+                logger.info(f"Mensaje recibido desde el propio bot (wa_id={wa_id}). Ignorando para evitar bucle.")
+                return
             profile_name = None
             if contacts and isinstance(contacts, list) and contacts[0].get("profile"):
                 profile_name = contacts[0]["profile"].get("name")
             if not text:
-                logger.warning("Mensaje sin texto recibido")
+                logger.info("Mensaje de tipo texto recibido sin contenido. Ignorando.")
                 return
             logger.info(f"Procesando mensaje de WhatsApp {wa_id}: {text}")
             usuario_id = await self._get_or_create_usuario(wa_id, profile_name)
