@@ -73,20 +73,26 @@ class CourseSearchTool(lr.ToolMessage):
                     )
                     formatted_results.append(formatted_result)
                 elif tipo_predominante == "curso" and tipo == "curso":
-                    # Responder sobre curso sin mencionar categoría
-                    formatted_result = (
-                        f"Curso: {payload.get('titulo', 'N/A')}\n"
-                        f"Descripción: {payload.get('descripcion', 'N/A')}\n"
-                        f"Nivel: {payload.get('nivel', 'N/A')}\n"
-                        f"Idioma: {payload.get('idioma', 'N/A')}\n"
-                        f"Precio: ${payload.get('precio', 'N/A')}\n"
-                        f"Cupo disponible: {payload.get('cupo', 'N/A')} estudiantes\n"
-                        f"Disponible: {'Sí' if disponible_final else 'No'}\n"
-                    )
-                    promociones = payload.get('promociones_activas', '')
-                    if promociones:
-                        formatted_result += f"Promociones activas: {promociones}\n"
-                    formatted_results.append(formatted_result)
+                        # Responder sobre curso asegurando que titulo y descripcion se obtienen correctamente
+                        titulo = payload.get('titulo') or payload.get('metadata', {}).get('titulo', 'N/A')
+                        descripcion = payload.get('descripcion') or payload.get('metadata', {}).get('descripcion', 'N/A')
+                        nivel = payload.get('nivel') or payload.get('metadata', {}).get('nivel', 'N/A')
+                        idioma = payload.get('idioma') or payload.get('metadata', {}).get('idioma', 'N/A')
+                        precio = payload.get('precio') or payload.get('metadata', {}).get('precio', 'N/A')
+                        cupo = payload.get('cupo') or payload.get('metadata', {}).get('cupo', 'N/A')
+                        promociones = payload.get('promociones_activas') or payload.get('metadata', {}).get('promociones_activas', '')
+                        formatted_result = (
+                            f"Curso: {titulo}\n"
+                            f"Descripción: {descripcion}\n"
+                            f"Nivel: {nivel}\n"
+                            f"Idioma: {idioma}\n"
+                            f"Precio: ${precio}\n"
+                            f"Cupo disponible: {cupo} estudiantes\n"
+                            f"Disponible: {'Sí' if disponible_final else 'No'}\n"
+                        )
+                        if promociones:
+                            formatted_result += f"Promociones activas: {promociones}\n"
+                        formatted_results.append(formatted_result)
                 elif tipo_predominante == "promocion" and tipo == "promocion":
                     # Responder sobre promoción
                     formatted_result = (
