@@ -19,6 +19,12 @@ from app.database import get_sync_connection
 from app.controllers.usuario.UsuarioController import UsuarioController
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+if not logger.hasHandlers():
+    logger.addHandler(handler)
 logging.getLogger("langroid").setLevel(logging.ERROR)
 
 # ============================
@@ -116,6 +122,7 @@ class PromotionSearchTool(lr.ToolMessage):
     """Herramienta para búsqueda de promociones activas"""
     request: str = "promotion_search"
     purpose: str = "Buscar promociones y ofertas activas en la base de datos"
+    query: str = ""
     
     def handle(self) -> str:
         """Busca promociones activas"""
@@ -125,8 +132,8 @@ class PromotionSearchTool(lr.ToolMessage):
             from app.services.embedding import EmbeddingService
             embedding_service = EmbeddingService()
             
-            # Generar embedding para consulta de promociones
-            promotion_query = "promociones descuentos ofertas especiales cursos en oferta"
+            # Usar el mensaje recibido del usuario como query para el embedding
+            promotion_query = self.query if self.query else "promociones descuentos ofertas especiales cursos en oferta"
             query_embedding = embedding_service.encode_query(promotion_query)
             
             filters = {"tipo": "promocion", "activa": True}
@@ -181,7 +188,7 @@ class PromotionSearchTool(lr.ToolMessage):
                     formatted_response += f"   • Detalles con precios: {promo['cursos_con_precios']}\n"
                 formatted_response += "\n"
             
-                return search_tool.handle()
+            return formatted_response
                 
         except Exception as e:
             logger.error(f"Error in KnowledgeAgent: {str(e)}")
@@ -247,8 +254,8 @@ class KnowledgeAgent(ChatAgent):
         try:
             # Determinar tipo de consulta
             if "promocion" in msg.lower() or "descuento" in msg.lower() or "oferta" in msg.lower():
-                # Buscar promociones
-                promotion_tool = PromotionSearchTool()
+                # Buscar promociones pasando el mensaje del usuario
+                promotion_tool = PromotionSearchTool(query=msg)
                 return promotion_tool.handle()
             else:
                 # Búsqueda general de cursos
@@ -379,25 +386,29 @@ class MainHypatiaAgent(ChatAgent):
 
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
                                   conversation_context: Optional[Dict] = None) -> str:
-        """Maneja mensaje de usuario orquestando múltiples agentes, integrando Redis para contexto."""
+        """Maneja mensaje de usuario orquestando múltiples agentes, usando Redis para cacheo de resultados."""
         try:
-            # Recuperar contexto desde Redis
-            from app.services.redis_store import RedisConversationStore
-            redis_store = RedisConversationStore()
-            context_key = str(user_id) if user_id else "anon"
-            previous_context = redis_store.get_conversation(context_key)
+            from app.services.redis_cache import RedisCache
+            import hashlib
+            redis_cache = RedisCache()
 
-            # Puedes usar previous_context para enriquecer el prompt si lo deseas
+            # Mejorar la clave de cache usando hash para evitar colisiones y asegurar unicidad
+            cache_key = f"cursos:busqueda:{hashlib.sha256(message.strip().lower().encode()).hexdigest()}"
+            cached_result = redis_cache.get(cache_key)
+            if cached_result:
+                logger.info(f"[CACHE HIT] Resultado recuperado desde Redis para clave: {cache_key}")
+                knowledge_response = cached_result
+            else:
+                logger.info(f"[CACHE MISS] Generando nuevo resultado para clave: {cache_key}")
+                knowledge_response = self.knowledge_agent.handle_message_fallback(message)
+                if knowledge_response is None:
+                    knowledge_response = ""
+                redis_cache.set(cache_key, knowledge_response, expire_seconds=600)  # Cache por 10 minutos
+
             self.analytics_agent.track_conversation(message, "")
             sales_response = self.sales_agent.handle_message_fallback(message, user_id)
 
-            logger.info("Consultando Knowledge Agent...")
-            knowledge_response = self.knowledge_agent.handle_message_fallback(message)
-
             context_prompt = f"""
-            Contexto previo:
-            {previous_context}
-
             Consulta del usuario: {message}
 
             Información de cursos encontrada:
@@ -431,9 +442,6 @@ class MainHypatiaAgent(ChatAgent):
                     return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
 
             self.analytics_agent.track_conversation(message, final_response)
-            # Guardar nuevo contexto en Redis
-            new_context = previous_context + f"\nUsuario: {message}\nBot: {final_response}"
-            redis_store.set_conversation(context_key, new_context)
             return final_response
         except Exception as e:
             logger.error(f"Error in MainHypatiaAgent: {str(e)}")

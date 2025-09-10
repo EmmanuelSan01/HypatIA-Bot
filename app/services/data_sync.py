@@ -209,6 +209,8 @@ class DataSyncService:
                     
                     doc_id = int(promocion['id']) + 2000000
                     
+                    import logging
+                    logging.getLogger(__name__).info(f"Promoción id={promocion['id']} activa={is_active} tipo={type(is_active)}")
                     await self.qdrant_service.upsert_document(
                         doc_id=doc_id,
                         content=content,
@@ -220,7 +222,7 @@ class DataSyncService:
                             "descuento": float(promocion['descuentoPorcentaje']) if promocion['descuentoPorcentaje'] else 0.0,
                             "fecha_inicio": promocion['fechaInicio'].isoformat() if promocion['fechaInicio'] else None,
                             "fecha_fin": promocion['fechaFin'].isoformat() if promocion['fechaFin'] else None,
-                            "activa": is_active,
+                            "activa": bool(is_active),
                             "cursos_nombres": promocion.get('cursos_nombres', '') or '',
                             "cursos_detalles": promocion.get('cursos_detalles', '') or '',
                             "total_cursos": promocion.get('total_cursos', 0) or 0

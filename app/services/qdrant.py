@@ -123,7 +123,7 @@ class QdrantService:
                     'categoria': metadata.get('categoria', ''),
                     'descripcion': metadata.get('descripcion', ''),
                     'descuento': metadata.get('descuento', 0.0),
-                    'activa': metadata.get('activa', True)
+                    'activa': bool(metadata.get('activa', True))
                 }
             )
             

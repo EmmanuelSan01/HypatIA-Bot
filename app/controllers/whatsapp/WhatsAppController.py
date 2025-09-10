@@ -1,5 +1,6 @@
 import logging
 import httpx
+import time
 from app.config import Config
 from app.controllers.chat.ChatController import ChatController
 from app.controllers.usuario.UsuarioController import UsuarioController
@@ -34,6 +35,22 @@ class WhatsAppController:
             messages = value.get("messages", [])
             contacts = value.get("contacts", [{}])
 
+            # Validar timestamp del mensaje para evitar procesar mensajes antiguos
+            MAX_AGE_SECONDS = 300  # 5 minutos
+            if messages and isinstance(messages, list) and len(messages) > 0:
+                message_ts = messages[0].get("timestamp")
+                if message_ts:
+                    try:
+                        # WhatsApp timestamp is usually in seconds (UNIX epoch)
+                        msg_time = int(message_ts)
+                        now = int(time.time())
+                        age = now - msg_time
+                        if age > MAX_AGE_SECONDS:
+                            logger.info(f"Mensaje ignorado por antigüedad ({age}s > {MAX_AGE_SECONDS}s): {messages[0]}")
+                            return
+                    except Exception as e:
+                        logger.error(f"Error validando timestamp del mensaje: {e}")
+                        # Si hay error, procesar normalmente
             # Solo procesar si hay mensajes y el tipo es 'text'
             if not messages or not isinstance(messages, list) or len(messages) == 0:
                 logger.info("Evento recibido sin mensajes de usuario. Ignorando.")
