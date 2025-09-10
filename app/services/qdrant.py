@@ -115,7 +115,7 @@ class QdrantService:
                 payload={
                     'content': content,
                     'metadata': metadata,
-                    'tipo': metadata.get('type', 'producto'),
+                    'tipo': metadata.get('type', 'curso'),
                     'categoria_id': metadata.get('categoria_id'),
                     'precio': metadata.get('precio'),
                     'disponible': metadata.get('disponible', True),
@@ -150,7 +150,7 @@ class QdrantService:
                     payload={
                         'content': doc.get('content', ''),
                         'metadata': doc.get('metadata', {}),
-                        'tipo': doc.get('tipo', 'producto'),
+                        'tipo': doc.get('tipo', 'curso'),
                         'categoria_id': doc.get('categoria_id'),
                         'precio': doc.get('precio'),
                         'disponible': doc.get('disponible', True)
@@ -221,7 +221,7 @@ class QdrantService:
                     'content': result.payload.get('content', ''),
                     'payload': result.payload,  # Incluir payload completo
                     'metadata': result.payload.get('metadata', {}),
-                    'tipo': result.payload.get('tipo', 'producto'),
+                    'tipo': result.payload.get('tipo', 'curso'),
                     'categoria_id': result.payload.get('categoria_id'),
                     'precio': result.payload.get('precio'),
                     'disponible': result.payload.get('disponible', True)

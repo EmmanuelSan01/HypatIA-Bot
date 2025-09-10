@@ -45,7 +45,7 @@ class AgentService:
             if not relevant_docs:
                 logger.warning("No relevant documents found in Qdrant - database may be empty")
                 return {
-                    "reply": "Lo siento, parece que la base de datos de productos no está disponible en este momento. Por favor, contacta al administrador para sincronizar los datos.",
+                    "reply": "Lo siento, parece que la base de datos de cursos no está disponible en este momento. Por favor, contacta al administrador para sincronizar los datos.",
                     "sources": [],
                     "relevance_score": 0.0,
                     "context_used": [],
@@ -81,7 +81,7 @@ class AgentService:
         context_parts = []
 
         if relevant_docs:
-            context_parts.append("📦 Información de productos disponibles:")
+            context_parts.append("� Información de cursos disponibles:")
             for doc in relevant_docs:
                 payload = doc.get("payload", {})
                 
@@ -118,21 +118,21 @@ class AgentService:
         Genera respuesta usando OpenAI con el contexto de la KB real
         """
         system_prompt = """
-        Eres HypatIA 🎓, asistente comercial especializado en productos de Taekwondo y artes marciales.
+    Eres HypatIA 🎓, asistente educativo especializado en cursos de Deep Learning y tecnologías afines.
         
         INSTRUCCIONES IMPORTANTES:
         - SOLO usa información del contexto proporcionado (datos reales de la base de datos)
         - La disponibilidad se indica claramente con ✅ Disponible o ❌ No disponible
-        - Si un producto muestra ✅ Disponible, significa que ESTÁ DISPONIBLE para compra
-        - Si un producto muestra ❌ No disponible, significa que NO ESTÁ DISPONIBLE para compra
+    - Si un curso muestra ✅ Disponible, significa que ESTÁ DISPONIBLE para inscripción
+    - Si un curso muestra ❌ No disponible, significa que NO ESTÁ DISPONIBLE para inscripción
         - Responde con precisión sobre la disponibilidad basándote únicamente en estos indicadores
         - La cantidad exacta de unidades no es relevante para el cliente
-        - NO inventes precios, productos o características que no estén en el contexto
+    - NO inventes precios, cursos o características que no estén en el contexto
         - Sé amigable, profesional y conciso
         - Incluye emojis relevantes para hacer la conversación más amena
         - Si el contexto está vacío, explica que necesitas más información
         
-        Tu objetivo es ayudar a los clientes con información REAL y precisa sobre nuestros productos.
+    Tu objetivo es ayudar a los estudiantes con información REAL y precisa sobre nuestros cursos.
         """
 
         user_prompt = f"""
@@ -206,7 +206,7 @@ class HypatiaAgent:
             "model": "HypatIA",
             "version": "1.0",
             "knowledge_source": "MySQL + Qdrant Vector DB",
-            "description": "Asistente comercial con información real de productos"
+            "description": "Asistente educativo con información real de cursos"
         }
 
     def is_available(self) -> bool:

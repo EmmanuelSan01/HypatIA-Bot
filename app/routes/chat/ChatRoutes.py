@@ -24,7 +24,7 @@ async def process_message(request: ChatMessageRequest):
     Process user message using RAG (Retrieval-Augmented Generation)
     
     This endpoint uses vector search to find relevant context and generates
-    intelligent responses about products, categories, and promotions.
+    intelligent responses about courses, categories, and promotions.
     Automatically persists the conversation if user_id is provided.
     """
     try:

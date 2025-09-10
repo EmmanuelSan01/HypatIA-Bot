@@ -40,16 +40,6 @@ class IngestController:
     
     async def sync_incremental(self, sources: Optional[List[str]] = None, 
                              hours_back: int = 24) -> Dict:
-        """
-        Endpoint for incremental data synchronization
-        
-        Args:
-            sources: Specific data sources to sync (productos, categorias, promociones)
-            hours_back: How many hours back to check for changes
-            
-        Returns:
-            Dict with sync results
-        """
         try:
             logger.info(f"Starting incremental sync (sources: {sources}, hours_back: {hours_back})")
             

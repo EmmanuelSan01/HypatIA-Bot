@@ -10,7 +10,7 @@ class SyncRequest(BaseModel):
     )
     sources: Optional[List[str]] = Field(
         default=None,
-        description="Specific data sources to sync (productos, categorias, promociones)"
+        description="Specific data sources to sync (cursos, categorias, promociones)"
     )
 
 class SyncResponse(BaseModel):
@@ -57,7 +57,7 @@ class ChatMessageResponse(BaseModel):
 
 class DocumentMetadata(BaseModel):
     """Metadata for documents stored in Qdrant"""
-    type: str = Field(description="Document type (producto, categoria, promocion)")
+    type: str = Field(description="Document type (curso, categoria, promocion)")
     id: int = Field(description="Original database ID")
     nombre: str = Field(description="Document name/title")
     categoria: Optional[str] = Field(default="", description="Category name")

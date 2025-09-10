@@ -203,7 +203,7 @@ class LangroidAgentService:
             },
             "capabilities": [
                 "Multi-agent orchestration",
-                "Semantic product search", 
+                "Semantic course search", 
                 "Sales recommendations",
                 "Conversation analytics",
                 "Persistent chat history",

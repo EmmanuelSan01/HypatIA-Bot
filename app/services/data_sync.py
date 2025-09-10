@@ -181,7 +181,7 @@ class DataSyncService:
             connection.close()
     
     async def _sync_promociones(self) -> int:
-        """Sync all promociones to Qdrant with associated products"""
+        """Sync all promociones to Qdrant with associated courses"""
         connection = get_sync_connection()
         try:
             with connection.cursor() as cursor:

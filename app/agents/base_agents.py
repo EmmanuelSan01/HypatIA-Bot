@@ -25,7 +25,7 @@ logging.getLogger("langroid").setLevel(logging.ERROR)
 # HERRAMIENTAS PERSONALIZADAS
 # ============================
 
-class ProductSearchTool(lr.ToolMessage):
+class CourseSearchTool(lr.ToolMessage):
     """Herramienta para búsqueda de cursos"""
     request: str = "course_search"
     purpose: str = "Buscar cursos en la base de datos usando embeddings vectoriales"
@@ -120,7 +120,7 @@ class PromotionSearchTool(lr.ToolMessage):
             embedding_service = EmbeddingService()
             
             # Generar embedding para consulta de promociones
-            promotion_query = "promociones descuentos ofertas especiales productos en oferta"
+            promotion_query = "promociones descuentos ofertas especiales cursos en oferta"
             query_embedding = embedding_service.encode_query(promotion_query)
             
             filters = {"tipo": "promocion", "activa": True}
@@ -142,23 +142,23 @@ class PromotionSearchTool(lr.ToolMessage):
                     "descripcion": payload.get("descripcion", "Promoción sin descripción"),
                     "descuento": payload.get("descuento", 0),
                     "fecha_fin": payload.get("fecha_fin", "Fecha no especificada"),
-                    "total_productos": payload.get("total_productos", 0)
+                    "total_cursos": payload.get("total_cursos", 0)
                 }
                 
-                # Extraer información detallada de productos desde metadata
+                # Extraer información detallada de cursos desde metadata
                 metadata = payload.get("metadata", {})
-                productos_nombres = metadata.get("productos_nombres", "") or payload.get("productos_nombres", "")
-                productos_detalles = metadata.get("productos_detalles", "") or payload.get("productos_detalles", "")
+                cursos_nombres = metadata.get("cursos_nombres", "") or payload.get("cursos_nombres", "")
+                cursos_detalles = metadata.get("cursos_detalles", "") or payload.get("cursos_detalles", "")
                 
-                if productos_nombres and productos_nombres.strip():
-                    promocion_info["productos_incluidos"] = productos_nombres
+                if cursos_nombres and cursos_nombres.strip():
+                    promocion_info["cursos_incluidos"] = cursos_nombres
                 else:
-                    promocion_info["productos_incluidos"] = "No se especifican productos"
+                    promocion_info["cursos_incluidos"] = "No se especifican cursos"
                 
-                if productos_detalles and productos_detalles.strip():
-                    promocion_info["productos_con_precios"] = productos_detalles
+                if cursos_detalles and cursos_detalles.strip():
+                    promocion_info["cursos_con_precios"] = cursos_detalles
                 else:
-                    promocion_info["productos_con_precios"] = "Precios no disponibles"
+                    promocion_info["cursos_con_precios"] = "Precios no disponibles"
                 
                 promotions_info.append(promocion_info)
             
@@ -169,19 +169,18 @@ class PromotionSearchTool(lr.ToolMessage):
                 formatted_response += f"   • Descripción: {promo['descripcion']}\n"
                 formatted_response += f"   • Descuento: {promo['descuento']}%\n"
                 formatted_response += f"   • Válida hasta: {promo['fecha_fin']}\n"
-                formatted_response += f"   • Total productos: {promo['total_productos']}\n"
-                formatted_response += f"   • Productos incluidos: {promo['productos_incluidos']}\n"
-                if promo['productos_con_precios'] != "Precios no disponibles":
-                    formatted_response += f"   • Detalles con precios: {promo['productos_con_precios']}\n"
+                formatted_response += f"   • Total cursos: {promo['total_cursos']}\n"
+                formatted_response += f"   • cursos incluidos: {promo['cursos_incluidos']}\n"
+                if promo['cursos_con_precios'] != "Precios no disponibles":
+                    formatted_response += f"   • Detalles con precios: {promo['cursos_con_precios']}\n"
                 formatted_response += "\n"
             
-            return formatted_response
-            
+                return search_tool.handle()
+                
         except Exception as e:
-            logger.error(f"Error in PromotionSearchTool: {str(e)}")
-            return f"Error obteniendo promociones: {str(e)}"
-
-
+            logger.error(f"Error in KnowledgeAgent: {str(e)}")
+            return "Lo siento, hubo un error accediendo a la base de conocimiento."
+        
 class UserHistoryTool(lr.ToolMessage):
     """Herramienta para obtener historial de usuario"""
     request: str = "user_history"
@@ -223,7 +222,7 @@ class UserHistoryTool(lr.ToolMessage):
         except Exception as e:
             logger.error(f"Error in UserHistoryTool: {str(e)}")
             return f"Error obteniendo historial: {str(e)}"
-
+        
 # ============================
 # AGENTES PRINCIPALES
 # ============================
@@ -233,8 +232,9 @@ class KnowledgeAgent(ChatAgent):
     
     def __init__(self, config: ChatAgentConfig):
         super().__init__(config)
-        self.enable_message(ProductSearchTool)
+        self.enable_message(CourseSearchTool)
         self.enable_message(PromotionSearchTool)
+        self.enable_message(PassTool)
         
     def handle_message_fallback(self, msg: str) -> str:
         """Maneja consultas de conocimiento"""
@@ -245,14 +245,13 @@ class KnowledgeAgent(ChatAgent):
                 promotion_tool = PromotionSearchTool()
                 return promotion_tool.handle()
             else:
-                # Búsqueda general de productos
-                search_tool = ProductSearchTool(query=msg)
+                # Búsqueda general de cursos
+                search_tool = CourseSearchTool(query=msg)
                 return search_tool.handle()
                 
         except Exception as e:
             logger.error(f"Error in KnowledgeAgent: {str(e)}")
             return "Lo siento, hubo un error accediendo a la base de conocimiento."
-
 
 class SalesAgent(ChatAgent):
     """Agente especializado en ventas y recomendaciones"""
@@ -389,7 +388,7 @@ class MainHypatiaAgent(ChatAgent):
             context_prompt = f"""
             Consulta del usuario: {message}
 
-            Información de productos encontrada:
+            Información de cursos encontrada:
             {knowledge_response}
 
             Recomendaciones de ventas:
