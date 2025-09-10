@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.agents.base_agents import HypatiaAgentFactory, MainHypatiaAgent
+from app.agents import HypatiaAgentFactory, MainHypatiaAgent
 from app.agents.config import langroid_config
 from app.models.chat.ChatModel import ChatCreate
 from app.models.mensaje.MensajeModel import MensajeCreate

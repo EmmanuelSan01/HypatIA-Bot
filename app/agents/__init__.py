@@ -1,24 +1,23 @@
 """
-Implementación de agentes base usando Langroid Framework - Módulo de compatibilidad
-Este archivo mantiene compatibilidad con importaciones existentes mientras delega al nuevo sistema modular.
+Módulo principal de agentes - punto de entrada unificado
 """
 
-# Importar todo del nuevo sistema modular
+# Importaciones principales
 from .main_agent import MainHypatiaAgent
 from .factory import HypatiaAgentFactory
 from .specialized_agents import KnowledgeAgent, SalesAgent, AnalyticsAgent
 from .tools import CourseSearchTool, PromotionSearchTool, UserHistoryTool
 from .utils import safe_stringify
 
-# Re-exportar para compatibilidad con código existente
+# Exportar las clases principales que se usan externamente
 __all__ = [
     'MainHypatiaAgent',
-    'HypatiaAgentFactory', 
+    'HypatiaAgentFactory',
     'KnowledgeAgent',
-    'SalesAgent',
+    'SalesAgent', 
     'AnalyticsAgent',
     'CourseSearchTool',
-    'PromotionSearchTool', 
+    'PromotionSearchTool',
     'UserHistoryTool',
     'safe_stringify'
 ]
