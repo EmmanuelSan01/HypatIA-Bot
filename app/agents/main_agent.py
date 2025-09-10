@@ -78,12 +78,16 @@ class MainHypatiaAgent(ChatAgent):
                 "error": str(e)
             }
 
+
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
                                   conversation_context: Optional[Dict] = None) -> str:
         """Maneja mensaje de usuario orquestando múltiples agentes, usando Redis para cacheo de resultados."""
+        import time
+        start_time = time.time()
         try:
-            from app.services.redis_cache import RedisCache
-            redis_cache = RedisCache()
+            # Usar ServiceManager para obtener instancias singleton optimizadas
+            from app.services.service_manager import service_manager
+            redis_cache = service_manager.get_redis_cache()
 
             # Mejorar la clave de cache usando hash para evitar colisiones y asegurar unicidad
             cache_key = f"cursos:busqueda:{hashlib.sha256(message.strip().lower().encode()).hexdigest()}"
@@ -141,6 +145,8 @@ class MainHypatiaAgent(ChatAgent):
                     return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
 
             self.analytics_agent.track_conversation(message, final_response)
+            elapsed = time.time() - start_time
+            logger.info(f"[RESPONSE TIME] El agente tardó {elapsed:.2f} segundos en generar la respuesta.")
             return final_response
         except Exception as e:
             logger.error(f"Error in MainHypatiaAgent: {str(e)}")

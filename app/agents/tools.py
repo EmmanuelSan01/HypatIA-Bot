@@ -18,11 +18,11 @@ class CourseSearchTool(lr.ToolMessage):
     def handle(self) -> str:
         """Responde sobre cursos o categorías según los resultados de Qdrant."""
         try:
-            from app.services.qdrant import QdrantService
-            from app.services.embedding import EmbeddingService
+            # Usar ServiceManager para obtener instancias singleton optimizadas
+            from app.services.service_manager import service_manager
             
-            qdrant_service = QdrantService()
-            embedding_service = EmbeddingService()
+            qdrant_service = service_manager.get_qdrant_service()
+            embedding_service = service_manager.get_embedding_service()
             query_embedding = embedding_service.encode_query(self.query)
 
             # Buscar documentos similares
@@ -105,11 +105,11 @@ class PromotionSearchTool(lr.ToolMessage):
     def handle(self) -> str:
         """Busca promociones activas"""
         try:
-            from app.services.qdrant import QdrantService
-            from app.services.embedding import EmbeddingService
+            # Usar ServiceManager para obtener instancias singleton optimizadas
+            from app.services.service_manager import service_manager
             
-            qdrant_service = QdrantService()
-            embedding_service = EmbeddingService()
+            qdrant_service = service_manager.get_qdrant_service()
+            embedding_service = service_manager.get_embedding_service()
             
             # Usar el mensaje recibido del usuario como query para el embedding
             promotion_query = self.query if self.query else "promociones descuentos ofertas especiales cursos en oferta"
