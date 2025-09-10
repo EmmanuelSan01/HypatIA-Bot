@@ -379,19 +379,25 @@ class MainHypatiaAgent(ChatAgent):
 
     async def handle_user_message(self, message: str, user_id: Optional[int] = None, 
                                   conversation_context: Optional[Dict] = None) -> str:
-        """Maneja mensaje de usuario orquestando múltiples agentes"""
+        """Maneja mensaje de usuario orquestando múltiples agentes, integrando Redis para contexto."""
         try:
+            # Recuperar contexto desde Redis
+            from app.services.redis_store import RedisConversationStore
+            redis_store = RedisConversationStore()
+            context_key = str(user_id) if user_id else "anon"
+            previous_context = redis_store.get_conversation(context_key)
+
+            # Puedes usar previous_context para enriquecer el prompt si lo deseas
             self.analytics_agent.track_conversation(message, "")
             sales_response = self.sales_agent.handle_message_fallback(message, user_id)
-
-
-            # No se procesan números de teléfono
 
             logger.info("Consultando Knowledge Agent...")
             knowledge_response = self.knowledge_agent.handle_message_fallback(message)
 
-            # Eliminar lógica y referencias a teléfono
             context_prompt = f"""
+            Contexto previo:
+            {previous_context}
+
             Consulta del usuario: {message}
 
             Información de cursos encontrada:
@@ -409,15 +415,12 @@ class MainHypatiaAgent(ChatAgent):
                 error_msg = str(e)
                 if "shorten prompt history" in error_msg or "token len" in error_msg:
                     logger.error("[CONTEXT RESET] Se alcanzó el límite de tokens. Limpiando contexto del agente.")
-                    # Limpiar historial/conversación del agente
                     if hasattr(self, 'conversation_history'):
                         self.conversation_history = []
-                    # Si KnowledgeAgent y SalesAgent tienen historial, también limpiarlo
                     if hasattr(self.knowledge_agent, 'conversation_history'):
                         self.knowledge_agent.conversation_history = []
                     if hasattr(self.sales_agent, 'conversation_history'):
                         self.sales_agent.conversation_history = []
-                    # Intentar de nuevo con contexto limpio
                     try:
                         final_response = await self.llm_response_async(context_prompt)
                     except Exception as e2:
@@ -428,6 +431,9 @@ class MainHypatiaAgent(ChatAgent):
                     return "Lo siento, hubo un error procesando tu consulta. Por favor intenta de nuevo."
 
             self.analytics_agent.track_conversation(message, final_response)
+            # Guardar nuevo contexto en Redis
+            new_context = previous_context + f"\nUsuario: {message}\nBot: {final_response}"
+            redis_store.set_conversation(context_key, new_context)
             return final_response
         except Exception as e:
             logger.error(f"Error in MainHypatiaAgent: {str(e)}")
