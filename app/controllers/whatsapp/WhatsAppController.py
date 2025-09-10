@@ -81,10 +81,30 @@ class WhatsAppController:
             )
             if response_result["status"] == "success":
                 reply = response_result["data"]["reply"]
+                # Si es string, usar directamente
                 if isinstance(reply, str):
                     response_text = reply
                 else:
-                    response_text = str(reply)
+                    # Intentar extraer el texto real de los atributos más comunes
+                    response_text = None
+                    for attr in ["content", "text", "message", "body"]:
+                        if hasattr(reply, attr):
+                            response_text = getattr(reply, attr)
+                            break
+                    # Si no se encontró, intentar convertir a dict y buscar claves
+                    if response_text is None:
+                        try:
+                            reply_dict = reply if isinstance(reply, dict) else reply.__dict__
+                            for key in ["content", "text", "message", "body"]:
+                                if key in reply_dict:
+                                    response_text = reply_dict[key]
+                                    break
+                        except Exception:
+                            pass
+                    # Si sigue sin encontrarse, usar str pero loggear advertencia
+                    if response_text is None:
+                        logger.warning(f"Respuesta LLM enviada como objeto: {type(reply)}. Usando str(reply).")
+                        response_text = str(reply)
             else:
                 response_text = "🤖 Disculpa, tuve un problema procesando tu mensaje. ¿Podrías intentar de nuevo?"
             # Corrige el formato Markdown antes de enviar
