@@ -2,7 +2,14 @@ import logging
 import httpx
 import time
 from app.config import Config
+from typing import Dict, Any, Optional
+import logging
+import asyncio
+import re
+from fastapi import HTTPException
+from app.database import get_sync_connection
 from app.controllers.chat.ChatController import ChatController
+from app.services.websocket_manager import websocket_manager
 from app.controllers.usuario.UsuarioController import UsuarioController
 
 logger = logging.getLogger(__name__)
@@ -110,6 +117,15 @@ class WhatsAppController:
             # Corrige el formato Markdown antes de enviar
             response_text = self._fix_markdown_format(response_text)
             await self._send_whatsapp_message(wa_id, response_text)
+            
+            # Enviar UNA SOLA notificación WebSocket sobre la conversación actualizada
+            await websocket_manager.notify_new_message(
+                chat_id=f"whatsapp_{wa_id}",
+                user_id=usuario_id,
+                message=response_text[:50] + "..." if len(response_text) > 50 else response_text,
+                is_user=False
+            )
+            
             logger.info(f"Mensaje procesado exitosamente para usuario {wa_id}")
         except Exception as e:
             logger.error(f"Error procesando mensaje: {str(e)}")
