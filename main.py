@@ -11,6 +11,7 @@ from app.routes.usuario.UsuarioRoutes import router as usuario_router
 from app.routes.chat.ChatRoutes import router as chat_router, admin_router as chat_admin_router, messages_router
 from app.routes.ingest.IngestRoutes import router as ingest_router
 from app.routes.whatsapp.WhatsAppWebhookRoutes import whatsapp_router as whatsapp_webhook_router
+from app.routes.ws_chat import ws_router
 
 from app.services.qdrant import QdrantService
 from app.services.data_sync import DataSyncService
@@ -50,6 +51,7 @@ app.include_router(chat_admin_router, prefix="/api/v1")
 app.include_router(messages_router, prefix="/api/v1")  # Nueva ruta para mensajes
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(whatsapp_webhook_router)
+app.include_router(ws_router)
 
 langroid_service = None
 
