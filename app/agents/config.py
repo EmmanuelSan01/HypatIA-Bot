@@ -18,7 +18,7 @@ class LangroidConfig:
         chat_model= os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         api_key= os.getenv("OPENAI_API_KEY", ""),
         chat_context_length=8000,
-        max_output_tokens=128,
+        max_output_tokens=192,
         temperature=0.3,
         timeout=30,
     )
