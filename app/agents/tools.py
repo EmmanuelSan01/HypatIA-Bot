@@ -13,7 +13,7 @@ class CourseSearchTool(lr.ToolMessage):
     purpose: str = "Buscar cursos en la base de datos usando embeddings vectoriales"
     query: str
     category: Optional[str] = None
-    max_results: int = 5
+    max_results: int = 2
     
     def handle(self) -> str:
         """Responde sobre cursos o categorías según los resultados de Qdrant."""
