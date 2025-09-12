@@ -69,6 +69,9 @@ class WhatsAppController:
             text = message.get("text", {}).get("body")
             wa_user = message.get("from")
             wa_id = wa_user
+            # Extraer el message_id para respuesta encadenada
+            message_id = message.get("id")
+            self._last_message_id = message_id  # Almacenar temporalmente en la instancia
             # Ignorar mensajes enviados por el propio bot para evitar bucles
             if wa_id == self.phone_id:
                 logger.info(f"Mensaje recibido desde el propio bot (wa_id={wa_id}). Ignorando para evitar bucle.")
@@ -167,6 +170,11 @@ class WhatsAppController:
                 "type": "text",
                 "text": {"body": text}
             }
+            # Si hay un message_id almacenado, incluirlo en el contexto para respuesta encadenada
+            if hasattr(self, '_last_message_id') and self._last_message_id:
+                payload["context"] = {"message_id": self._last_message_id}
+                # Limpiar el message_id después de usarlo
+                self._last_message_id = None
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, json=payload, headers=headers, timeout=30.0)
                 response.raise_for_status()

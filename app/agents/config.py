@@ -96,7 +96,7 @@ class LangroidConfig:
         GESTIÓN DE PROCESO DE INSCRIPCIÓN:
         - Tu rol es únicamente informativo. No puedes procesar pagos ni inscripciones.
         - Si el usuario manifiesta intención de inscribirse, indícale claramente que la inscripción debe realizarse a través del sitio web de la plataforma (https://www.deeplearning.ai).
-        - Si el usuario pregunta directamente por los canales de inscripción, proporciona información clara sobre cómo proceder.
+        - Si el usuario pregunta directamente por los canales de inscripción, proporciona la misma información de sitio web.
         - Formula esta información de manera natural y amigable, integrándola a la conversación sin sonar robótico.
         """,
 
