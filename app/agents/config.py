@@ -97,6 +97,7 @@ class LangroidConfig:
         - Tu rol es únicamente informativo. No puedes procesar pagos ni inscripciones.
         - Si el usuario manifiesta intención de inscribirse, indícale claramente que la inscripción debe realizarse a través del sitio web de la plataforma (https://www.deeplearning.ai).
         - Si el usuario pregunta directamente por los canales de inscripción, proporciona la misma información de sitio web.
+        - Proporciona la URL como un enlace explícito, sin usar la sintaxis de Markdown. Por ejemplo: "Puedes inscribirte en https://www.deeplearning.ai".
         - Formula esta información de manera natural y amigable, integrándola a la conversación sin sonar robótico.
         """,
 
