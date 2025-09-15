@@ -17,13 +17,12 @@ class ChatController:
     async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None) -> Dict:
         """Process message using Langroid Multi-Agent System and persist conversation"""
         try:
-            # Detectar si el mensaje es sobre un curso específico
             curso_actual = self.user_course_context.get(user_id)
-            if self._is_curso_query(message):
-                curso_id = self._extract_curso_id(message)
-                if curso_id:
-                    self.user_course_context[user_id] = curso_id
-                    curso_actual = curso_id
+            # Solo guardar contexto si se menciona explícitamente un curso
+            curso_id = self._extract_curso_id(message)
+            if curso_id:
+                self.user_course_context[user_id] = curso_id
+                curso_actual = curso_id
             # Si el usuario pregunta por detalles y hay curso en contexto, usarlo
             if self._is_detalle_query(message) and curso_actual:
                 response = await self.langroid_service.process_message(
@@ -33,6 +32,7 @@ class ChatController:
                     curso_id=curso_actual
                 )
             else:
+                # Si no hay curso en contexto, responde con lista o recomendación general
                 response = await self.langroid_service.process_message(
                     message=message,
                     user_id=user_id,
