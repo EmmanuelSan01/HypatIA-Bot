@@ -3,8 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12.3-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-0.116.1-green.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Langroid-RAG-purple.svg" alt="Langroid">
-  <img src="https://img.shields.io/badge/Qdrant-Vector_DB-orange.svg" alt="Qdrant">
+  <img src="https://img.shields.io/badge/Langroid-RAG-orange.svg" alt="Langroid">
+  <img src="https://img.shields.io/badge/Qdrant-Vector_DB-crimson.svg" alt="Qdrant">
 </p>
 
 **Backend de asistente comercial con RAG**, integrado con WhatsApp y sistema multi-agente inteligente.
