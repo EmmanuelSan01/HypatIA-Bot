@@ -45,7 +45,7 @@ async def sync_incremental(
     """
     Perform incremental data synchronization
     
-    - **sources**: Specific data sources to sync (productos, categorias, promociones)
+    - **sources**: Specific data sources to sync (cursos, categorias, promociones)
     - **hours_back**: How many hours back to check for changes (default: 24)
     """
     try:

@@ -1,0 +1,19 @@
+# Ignorar archivos de entorno
+.env
+
+# Ignorar certificados CA
+*.pem
+
+# Ignorar dependencias de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar entornos virtuales
+venv/
+.env/
+.venv/
+
+# Ignorar archivos de configuración de IDEs
+**/*devcontainer*

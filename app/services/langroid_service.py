@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from app.agents.base_agents import BaekhoAgentFactory, MainBaekhoAgent
+from app.agents import HypatiaAgentFactory, MainHypatiaAgent
 from app.agents.config import langroid_config
 from app.models.chat.ChatModel import ChatCreate
 from app.models.mensaje.MensajeModel import MensajeCreate
@@ -19,13 +19,13 @@ class LangroidAgentService:
     """
     
     def __init__(self):
-        self.main_agent: Optional[MainBaekhoAgent] = None
+        self.main_agent: Optional[MainHypatiaAgent] = None
         self._initialize_agents()
     
     def _initialize_agents(self):
         """Inicializa los agentes Langroid"""
         try:
-            self.main_agent = BaekhoAgentFactory.create_main_agent()
+            self.main_agent = HypatiaAgentFactory.create_main_agent()
             logger.info("✅ Agentes Langroid inicializados correctamente")
         except Exception as e:
             logger.error(f"❌ Error inicializando agentes Langroid: {str(e)}")
@@ -196,14 +196,14 @@ class LangroidAgentService:
             "version": "1.0.0",
             "agents_available": bool(self.main_agent),
             "agents": {
-                "main_agent": "MainBaekhoAgent - Orquestador principal",
+                "main_agent": "MainHypatiaAgent - Orquestador principal",
                 "knowledge_agent": "KnowledgeAgent - Búsqueda en base de conocimiento",
                 "sales_agent": "SalesAgent - Recomendaciones y ventas",
                 "analytics_agent": "AnalyticsAgent - Análisis y métricas"
             },
             "capabilities": [
                 "Multi-agent orchestration",
-                "Semantic product search", 
+                "Semantic course search", 
                 "Sales recommendations",
                 "Conversation analytics",
                 "Persistent chat history",
@@ -271,7 +271,7 @@ class LangroidAgentService:
 # BACKWARD COMPATIBILITY
 # ============================
 
-class BaekhoLangroidAgent:
+class HypatiaLangroidAgent:
     """
     Clase de compatibilidad que mantiene la interfaz original
     pero usa Langroid internamente
