@@ -339,15 +339,16 @@ class ChatController:
         return "curso" in message.lower()
 
     def _extract_curso_id(self, message: str) -> Optional[str]:
-        # Buscar el curso por nombre en la base de datos
+        # Buscar el curso por nombre en la base de datos solo si hay nombre
         from app.models.curso.CursoModel import CursoModel
         nombre = self._extract_curso_nombre(message)
-        if not nombre:
+        if not nombre or len(nombre) < 3:
             return None
         cursos = CursoModel.get_all_cursos()
         for curso in cursos:
             if nombre.lower() in curso.titulo.lower():
                 return str(curso.id)
+        # Si no se encuentra ningún curso, retorna None sin provocar error
         return None
 
     def _extract_curso_nombre(self, message: str) -> Optional[str]:
