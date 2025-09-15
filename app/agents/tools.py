@@ -14,6 +14,9 @@ class CourseSearchTool(lr.ToolMessage):
     query: str
     category: Optional[str] = None
     max_results: int = 2
+    offset: int = 0
+    _offset_counter: int = 0  # contador interno
+    _total_results: int = None  # total de resultados disponibles
     
     def handle(self) -> str:
         """Responde sobre cursos o categorías según los resultados de Qdrant."""
@@ -25,10 +28,22 @@ class CourseSearchTool(lr.ToolMessage):
             embedding_service = service_manager.get_embedding_service()
             query_embedding = embedding_service.encode_query(self.query)
 
-            # Buscar documentos similares
+            # Obtener el total de resultados disponibles para la consulta
+            if self._total_results is None:
+                self._total_results = qdrant_service.count_similar(query_embedding)
+
+            # Actualizar offset automáticamente y ciclar si es necesario
+            self.offset = self._offset_counter
+            if self.offset >= self._total_results:
+                self._offset_counter = 0
+                self.offset = 0
+            else:
+                self._offset_counter += self.max_results
+
             results = qdrant_service.search_similar(
                 query_embedding,
-                limit=self.max_results
+                limit=self.max_results,
+                offset=self.offset
             )
 
             if not results:

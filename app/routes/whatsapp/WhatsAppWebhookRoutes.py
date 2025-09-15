@@ -22,15 +22,18 @@ async def verify_webhook(request: Request):
 
 # Endpoint POST para recibir mensajes de WhatsApp y procesarlos
 from app.controllers.whatsapp.WhatsAppController import WhatsAppController
+import asyncio
+import time
+
 whatsapp_controller = WhatsAppController()
 
 @whatsapp_router.post("")
 async def receive_whatsapp_webhook(request: Request):
+    start_time = time.time()
     body = await request.json()
     logger.info(f"Webhook POST recibido: {body}")
-    try:
-        await whatsapp_controller.process_message(body)
-        return {"status": "ok"}
-    except Exception as e:
-        logger.error(f"Error procesando webhook: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+    # Procesar el mensaje en segundo plano para responder rápido
+    asyncio.create_task(whatsapp_controller.process_message(body))
+    elapsed = time.time() - start_time
+    logger.info(f"Tiempo de respuesta webhook: {elapsed:.3f} segundos")
+    return {"status": "ok"}
