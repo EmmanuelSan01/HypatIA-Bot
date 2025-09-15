@@ -1,4 +1,4 @@
-# SportBot - Taekwondo Baekho
+# HypatIA Bot - DeepLearning.AI
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12.3-blue.svg" alt="Python">
@@ -422,7 +422,7 @@ Backend que proporciona:
 - Sistema RAG (Retrieval-Augmented Generation) sobre base de conocimiento en Qdrant
 - Integración con WhatsApp Cloud API y Telegram Bot API
 - Sistema multi-agente con Langroid para coordinación de tareas especializadas
-- CRUD completo para gestión de productos, categorías y promociones
+- CRUD completo para gestión de cursos, categorías y promociones
 
 ## 🏗️ Arquitectura
 
@@ -432,14 +432,14 @@ Backend que proporciona:
 
 ### Sistema Multi-Agente (Langroid)
 
-#### `MainBaekhoAgent`
+#### `MainHypatiaAgent`
 - **Función**: Orquestador principal del sistema
 - **Responsabilidades**: Coordina la interacción entre agentes especializados
 
 #### `KnowledgeAgent`
 - **Función**: Búsqueda y recuperación de conocimiento
 - **Herramientas**: `ProductSearchTool`, `PromotionSearchTool`
-- **Capacidades**: Búsqueda semántica en catálogo de productos
+- **Capacidades**: Búsqueda semántica en catálogo de cursos
 
 #### `SalesAgent`
 - **Función**: Recomendaciones de ventas y validación
@@ -470,15 +470,13 @@ Backend que proporciona:
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/Brayanestiv1/SportBot_backend.git
-cd SportBot_backend
+git clone https://github.com/EmmanuelSan01/HypatIA-Bot.git
+cd HypatIA-Bot
 ```
 
 ### 2. Configuración del Entorno
 
 ```bash
-cd backend
-
 # Crear entorno virtual
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
@@ -677,7 +675,7 @@ Controlador principal del chat:
 ## 📋 Esquema de Base de Datos
 
 ### Tablas Principales
-- **`categoria`**: Categorías de productos deportivos
+- **`categoria`**: Categorías de cursos
 - **`curso`**: Catálogo con precios e inventario
 - **`promocion`**: Promociones y descuentos activos
 - **`usuario`**: Perfiles con números telefónicos
@@ -686,8 +684,8 @@ Controlador principal del chat:
 
 ### Relaciones
 ```sql
-categoria (1) ←→ (N) producto
-promocion (N) ←→ (N) producto
+categoria (1) ←→ (N) curso
+promocion (N) ←→ (N) curso
 usuario (1) ←→ (N) chat
 chat (1) ←→ (N) mensaje
 ```
@@ -696,7 +694,7 @@ chat (1) ←→ (N) mensaje
 
 1. **Sistema Multi-Agente Inteligente**: Framework Langroid con agentes especializados
 2. **RAG Implementado**: Búsqueda semántica con Qdrant Vector Database
-3. **CRUD Completo**: Gestión de productos, categorías, promociones y usuarios
+3. **CRUD Completo**: Gestión de cursos, categorías, promociones y usuarios
 4. **Sistema de Chat Persistente**: Historial de conversaciones y análisis
 5. **Integración Telegram**: Soporte para webhook de bot
 6. **Validación Telefónica**: Validación y almacenamiento de números colombianos
