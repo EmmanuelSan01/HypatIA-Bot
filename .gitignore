@@ -15,5 +15,9 @@ venv/
 .env/
 .venv/
 
+# Ignorar repositorios de Git
+*.git
+*.git/
+
 # Ignorar archivos de configuración de IDEs
 **/*devcontainer*
