@@ -13,74 +13,85 @@ class ChatController:
         self.langroid_service = LangroidAgentService()
         self.data_sync_service = DataSyncService()
         self.user_course_context = {}  # Diccionario para guardar el curso actual por usuario
+        self.recent_context = {}  # Diccionario para guardar los últimos 4 mensajes por usuario
 
     async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None) -> Dict:
-        """Process message using Langroid Multi-Agent System and persist conversation"""
+        """Process message using Langroid Multi-Agent System and persist conversation, manteniendo solo los últimos 4 mensajes en contexto"""
         try:
+            # --- Actualizar contexto reciente ---
+            if user_id is not None:
+                if user_id not in self.recent_context:
+                    self.recent_context[user_id] = []
+                # Añadir mensaje del usuario
+                self.recent_context[user_id].append({"role": "user", "message": message})
+                # Mantener solo los últimos 4 mensajes
+                self.recent_context[user_id] = self.recent_context[user_id][-4:]
+            
             curso_actual = self.user_course_context.get(user_id)
-            # Solo guardar contexto si se menciona explícitamente un curso
             curso_id = self._extract_curso_id(message)
             if curso_id:
                 self.user_course_context[user_id] = curso_id
                 curso_actual = curso_id
-            # Si el usuario pregunta por detalles y hay curso en contexto, usarlo
+            # Preparar contexto para el modelo: 2 últimos usuario, 2 últimos bot
+            context_msgs = self.recent_context.get(user_id, [])
+            user_msgs = [m["message"] for m in context_msgs if m["role"] == "user"][-2:]
+            bot_msgs = [m["message"] for m in context_msgs if m["role"] == "bot"][-2:]
+            context_for_model = []
+            # Intercalar para mantener orden cronológico
+            for m in context_msgs[-4:]:
+                context_for_model.append(m)
+            # --- Llamar al modelo con contexto ---
             if self._is_detalle_query(message) and curso_actual:
                 response = await self.langroid_service.process_message(
                     message=message,
                     user_id=user_id,
                     persist_conversation=True,
-                    curso_id=curso_actual
+                    curso_id=curso_actual,
+                    context=context_for_model
                 )
             else:
-                # Si no hay curso en contexto, responde con lista o recomendación general
                 response = await self.langroid_service.process_message(
                     message=message,
                     user_id=user_id,
-                    persist_conversation=True
+                    persist_conversation=True,
+                    context=context_for_model
                 )
-            
-            # Extract response data from Langroid format
             bot_reply = response.get("reply", "")
             chat_id = response.get("chat_id")
             conversation_stats = response.get("conversation_stats", {})
-            
-            # Store conversation in database if user_id provided and not already persisted
+            # Guardar mensajes en la base de datos y actualizar contexto reciente
             if user_id and not chat_id:
                 chat_record = await self._get_or_create_chat(user_id, chat_external_id)
-                
-                # Store user message
                 await self._store_message(
                     chat_id=chat_record['id'],
                     tipo='usuario',
                     contenido=message
                 )
-                
-                # Store bot response
                 await self._store_message(
                     chat_id=chat_record['id'],
                     tipo='bot',
                     contenido=bot_reply
                 )
-                
-                # Update chat summary
                 await self._update_chat_summary(chat_record['id'], message)
                 chat_id = chat_record['id']
-            
+            # Añadir respuesta del bot al contexto reciente
+            if user_id is not None:
+                self.recent_context[user_id].append({"role": "bot", "message": bot_reply})
+                self.recent_context[user_id] = self.recent_context[user_id][-4:]
             return {
                 "status": response.get("status", "success"),
                 "message": response.get("message", "Consulta procesada exitosamente"),
                 "data": {
                     "reply": bot_reply,
-                    "sources": [],  # Langroid handles sources internally
-                    "relevance_score": 1.0,  # Langroid provides quality through multi-agent orchestration
-                    "context_used": [],
+                    "sources": [],
+                    "relevance_score": 1.0,
+                    "context_used": context_for_model,
                     "chat_id": chat_id,
                     "agent_used": response.get("agent_used", "langroid_multi_agent"),
                     "conversation_stats": conversation_stats,
                     "timestamp": response.get("timestamp")
                 }
             }
-            
         except Exception as e:
             return {
                 "status": "error",
