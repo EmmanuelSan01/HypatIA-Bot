@@ -573,7 +573,7 @@ Ver documentación completa en: http://localhost:8000/docs
 <details>
   <summary><b>Estructura de carpetas</b></summary>
   <pre><code>
-SportBot_backend
+HypatIA-Bot
 ├── app/
 |   ├── agents/                        # Sistema Multi-Agente Langroid
 |   |   ├── base_agents.py             # Implementación de agentes IA
