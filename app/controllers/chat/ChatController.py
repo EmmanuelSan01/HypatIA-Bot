@@ -8,28 +8,19 @@ from app.services.langroid_service import LangroidAgentService, HypatiaLangroidA
 from app.services.data_sync import DataSyncService
 
 class ChatController:
+    
     def __init__(self):
         self.agent_service = HypatiaLangroidAgent()
         self.langroid_service = LangroidAgentService()
         self.data_sync_service = DataSyncService()
-        self.user_offsets = {}  # Diccionario para almacenar offset por usuario
-
-    async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None, more_courses: bool = False) -> Dict:
+    
+    async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None) -> Dict:
         """Process message using Langroid Multi-Agent System and persist conversation"""
         try:
-            # Gestión de offset para paginación de cursos
-            if user_id is not None:
-                if more_courses:
-                    self.user_offsets[user_id] = self.user_offsets.get(user_id, 0) + 2  # Incrementa offset
-                else:
-                    self.user_offsets[user_id] = 0  # Reinicia offset en nueva consulta
-            offset = self.user_offsets.get(user_id, 0) if user_id is not None else 0
-
             response = await self.langroid_service.process_message(
                 message=message, 
                 user_id=user_id,
-                persist_conversation=True,
-                offset=offset  # Pasar offset a la herramienta
+                persist_conversation=True
             )
             
             # Extract response data from Langroid format

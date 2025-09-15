@@ -14,20 +14,21 @@ class CourseSearchTool(lr.ToolMessage):
     query: str
     category: Optional[str] = None
     max_results: int = 2
-    offset: int = 0
     
     def handle(self) -> str:
         """Responde sobre cursos o categorías según los resultados de Qdrant."""
         try:
+            # Usar ServiceManager para obtener instancias singleton optimizadas
             from app.services.service_manager import service_manager
+            
             qdrant_service = service_manager.get_qdrant_service()
             embedding_service = service_manager.get_embedding_service()
             query_embedding = embedding_service.encode_query(self.query)
 
+            # Buscar documentos similares
             results = qdrant_service.search_similar(
                 query_embedding,
-                limit=self.max_results,
-                offset=self.offset
+                limit=self.max_results
             )
 
             if not results:
