@@ -3,11 +3,11 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12.3-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/FastAPI-0.116.1-green.svg" alt="FastAPI">
-  <img src="https://img.shields.io/badge/React-19.1.1-aqua.svg" alt="React">
-  <img src="https://img.shields.io/badge/TypeScript-5.8.3-blue.svg" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Langroid-RAG-purple.svg" alt="Langroid">
+  <img src="https://img.shields.io/badge/Qdrant-Vector_DB-orange.svg" alt="Qdrant">
 </p>
 
-**MVP de asistente comercial con RAG**, integrado con WhatsApp/Telegram y una interfaz web minimalista.
+**Backend de asistente comercial con RAG**, integrado con WhatsApp y sistema multi-agente inteligente.
 
 <details>
   <summary><b>Requerimientos del Proyecto</b></summary>
@@ -416,57 +416,56 @@
 
 ## 🎯 Objetivo
 
-Entregar un asistente comercial inteligente que:
+Backend que proporciona:
 
--   Responde consultas usando RAG sobre base de conocimiento en Qdrant
--   Opera en WhatsApp Cloud API **o** Telegram Bot API
--   Incluye interfaz web mínima para pruebas
--   Proporciona panel administrativo de solo lectura
+- API REST con FastAPI para asistente comercial inteligente
+- Sistema RAG (Retrieval-Augmented Generation) sobre base de conocimiento en Qdrant
+- Integración con WhatsApp Cloud API y Telegram Bot API
+- Sistema multi-agente con Langroid para coordinación de tareas especializadas
+- CRUD completo para gestión de productos, categorías y promociones
 
 ## 🏗️ Arquitectura
 
 <div align="center">
-  <strong>Usuario ⇄ (Web/WhatsApp/Telegram) <b>⇄</b> FastAPI ⇄ Langroid Agent ⇄ Qdrant ⇄ LLM ⇄ Respuesta</strong>
+  <strong>Usuario ⇄ WhatsApp ⇄ FastAPI ⇄ Langroid Agent ⇄ Qdrant ⇄ LLM ⇄ Respuesta</strong>
 </div>
 
-### Flujo de Datos
+### Sistema Multi-Agente (Langroid)
 
-1. **Ingesta** (`IngestController`) → Procesa y vectoriza datos del catálogo
-2. **Consulta Usuario** → Recibida por `ChatController`
-3. **Procesamiento IA** → `LangroidService` coordina agentes especializados
-4. **Búsqueda Semántica** → `KnowledgeAgent` consulta Qdrant Vector DB
-5. **Recomendación** → `SalesAgent` genera respuesta contextual
-6. **Persistencia** → `MensajeController` almacena conversación
-7. **Respuesta** → Entregada al usuario via API/Telegram
+#### `MainBaekhoAgent`
+- **Función**: Orquestador principal del sistema
+- **Responsabilidades**: Coordina la interacción entre agentes especializados
+
+#### `KnowledgeAgent`
+- **Función**: Búsqueda y recuperación de conocimiento
+- **Herramientas**: `ProductSearchTool`, `PromotionSearchTool`
+- **Capacidades**: Búsqueda semántica en catálogo de productos
+
+#### `SalesAgent`
+- **Función**: Recomendaciones de ventas y validación
+- **Herramientas**: `PhoneValidationTool`
+- **Capacidades**: Validación de números telefónicos colombianos
+
+#### `AnalyticsAgent`
+- **Función**: Análisis de conversaciones
+- **Capacidades**: Métricas de interacción, análisis de comportamiento
 
 ### Stack Tecnológico
-
-**Backend:**
-
--   Python (3.12.3)
--   FastAPI (ASGI)
--   Qdrant (Vector Database)
--   Langroid (Agent Orchestration & RAG)
--   MySQL (Chat Persistence)
-
-**Frontend:**
-
--   React 19 + TypeScript
--   Vite (Build Tool)
-
-**IA & Embeddings:**
-
--   FastEmbed (`intfloat/multilingual-e5-small`) por defecto
--   OpenAI Embeddings (opcional)
--   OpenAI LLM (configurable)
+- Python (3.12.3)
+- FastAPI (ASGI)
+- Qdrant (Vector Database)
+- Langroid (Agent Orchestration & RAG)
+- MySQL (Chat Persistence)
+- FastEmbed (`intfloat/multilingual-e5-small`) por defecto
+- OpenAI Embeddings (opcional)
+- OpenAI LLM (configurable)
 
 ## 🚀 Inicio Rápido
 
 ### Prerrequisitos
 
--   Python 3.12+
--   Node.js 22.19+
--   Docker & Docker Compose (recomendado)
+- Python 3.12+
+- MySQL 8.0+
 
 ### 1. Clonar el Repositorio
 
@@ -475,7 +474,7 @@ git clone https://github.com/Brayanestiv1/SportBot_backend.git
 cd SportBot_backend
 ```
 
-### 2. Configuración del Backend
+### 2. Configuración del Entorno
 
 ```bash
 cd backend
@@ -496,83 +495,78 @@ cp .env.example .env
 Edita el archivo `.env`:
 
 ```env
-# OpenAI (requerido)
-OPENAI_API_KEY=sk-...
+# Database Configuration
+DB_HOST=
+DB_PORT=
+DB_USER=
+DB_PASSWORD=
+DB_NAME=
+CA_PATH=
 
-# Embeddings
-USE_OPENAI_EMBEDDINGS=false
-EMBED_MODEL=intfloat/multilingual-e5-small
+# Qdrant Configuration
+QDRANT_URL=
+QDRANT_PORT=
+QDRANT_API_KEY=
+QDRANT_COLLECTION_NAME=
+VECTOR_SIZE=
 
-# Qdrant
-QDRANT_URL=http://localhost:6333
-QDRANT_COLLECTION=company_kb
+# WhatsApp API
+APP_ID=
+APP_SECRET=
+ACCESS_TOKEN=
+PHONE_ID=
+VERIFY_TOKEN=
+WEBHOOK=
 
-# Frontend
-FRONTEND_ORIGIN=http://localhost:5174
+# Redis Configuration
+REDIS_HOST=
+REDIS_PORT=
+REDIS_PASSWORD=
 
-# WhatsApp (si se elige este canal)
-WHATSAPP_VERIFY_TOKEN=tu_verify_token
-WHATSAPP_TOKEN=tu_access_token
-WHATSAPP_PHONE_ID=tu_phone_number_id
+# AI API Key
+OPENAI_API_KEY=
 
-# Telegram (si se elige este canal)
-TELEGRAM_BOT_TOKEN=tu_bot_token
+# Basic settings
+DEBUG=True
+SECRET_KEY=
 
-# Base URL pública (para webhooks)
-PUBLIC_BASE_URL=https://tu-dominio.com
+# Server configuration
+HOST=0.0.0.0
+PORT=8000
 ```
 
 ### 4. Verificar Instalación
 
--   **API Health:** http://localhost:8000/health
--   **Docs API:** http://localhost:8000/docs
--   **Frontend:** http://localhost:5174
+- **API Health:** http://localhost:8000/health
+- **Documentación:** http://localhost:8000/docs
 
 ## 📡 Configuración de Canales
 
 ### WhatsApp Cloud API
 
-1.  Configurar webhook en Meta for Developers:
-    
-    -   URL: `https://tu-dominio.com/whatsapp/webhook`
-    -   Verify Token: el valor de `WHATSAPP_VERIFY_TOKEN`
-2.  Probar verificación:
-    
+1. Configurar webhook en Meta for Developers:
+  - URL: `https://tu-dominio.com/whatsapp/webhook`
+  - Verify Token: valor de `WHATSAPP_VERIFY_TOKEN`
 
+2. Probar verificación:  
 ```bash
 curl "http://localhost:8000/whatsapp/webhook?hub.mode=subscribe&hub.challenge=123&hub.verify_token=tu_verify_token"
-```
-
-### Telegram Bot
-
-1.  Configurar webhook:
-
-```bash
-curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://tu-dominio.com/telegram/webhook"}'
-```
-
-2.  Verificar webhook:
-
-```bash
-curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
 
 ## 📊 API Endpoints
 
 ### Core
 
--   `POST /chat` - Chat por HTTP
--   `GET /health` - Estado del servicio
--   `GET /admin/chats` - Listado de chats (solo lectura)
--   `GET /admin/chats/{id}` - Detalle de chat
+- `POST /chat` - Chat por HTTP
+- `GET /health` - Estado del servicio
+- `GET /admin/chats` - Listado de chats (solo lectura)
+- `GET /admin/chats/{id}` - Detalle de chat
 
 ### Webhooks
 
--   `GET /whatsapp/webhook` - Verificación WhatsApp
--   `POST /whatsapp/webhook` - Mensajes WhatsApp
--   `POST /telegram/webhook` - Mensajes Telegram
+- `GET /whatsapp/webhook` - Verificación WhatsApp
+- `POST /whatsapp/webhook` - Mensajes WhatsApp
+- `POST /telegram/webhook` - Mensajes Telegram
 
 Ver documentación completa en: http://localhost:8000/docs
 
@@ -648,35 +642,6 @@ SportBot_backend
   </code></pre>
 </details>
 
-### Sistema Multi-Agente (Langroid)
-
-#### `MainBaekhoAgent`
-- **Función**: Orquestador principal del sistema
-- **Responsabilidades**: Coordina la interacción entre agentes especializados
-
-#### `KnowledgeAgent`
-- **Función**: Búsqueda y recuperación de conocimiento
-- **Herramientas**: `ProductSearchTool`, `PromotionSearchTool`
-- **Capacidades**: Búsqueda semántica en catálogo de productos
-
-#### `SalesAgent`
-- **Función**: Recomendaciones de ventas y validación
-- **Herramientas**: `PhoneValidationTool`
-- **Capacidades**: Validación de números telefónicos colombianos, recomendaciones personalizadas
-
-#### `AnalyticsAgent`
-- **Función**: Análisis de conversaciones
-- **Capacidades**: Métricas de interacción, análisis de comportamiento
-
-### Esquema de Base de Datos
-
-- **`categoria`**: Categorías de productos deportivos
-- **`producto`**: Catálogo con precios e inventario
-- **`promocion`**: Promociones y descuentos activos
-- **`usuario`**: Perfiles de usuario con números telefónicos
-- **`chat`**: Sesiones de conversación
-- **`mensaje`**: Mensajes individuales (usuario/bot)
-
 ## 🔧 Componentes Clave
 
 ### 1. **main.py**
@@ -709,6 +674,24 @@ Controlador principal del chat:
 - Persistencia de conversaciones
 - Manejo de contexto y historial
 
+## 📋 Esquema de Base de Datos
+
+### Tablas Principales
+- **`categoria`**: Categorías de productos deportivos
+- **`curso`**: Catálogo con precios e inventario
+- **`promocion`**: Promociones y descuentos activos
+- **`usuario`**: Perfiles con números telefónicos
+- **`chat`**: Sesiones de conversación
+- **`mensaje`**: Mensajes individuales (usuario/bot)
+
+### Relaciones
+```sql
+categoria (1) ←→ (N) producto
+promocion (N) ←→ (N) producto
+usuario (1) ←→ (N) chat
+chat (1) ←→ (N) mensaje
+```
+
 ## 🚀 Características Principales
 
 1. **Sistema Multi-Agente Inteligente**: Framework Langroid con agentes especializados
@@ -723,18 +706,17 @@ Controlador principal del chat:
 ## 📋 Roadmap
 
 ### Fase 1 (MVP) ✅
-
--   [x] Chat HTTP básico
--   [x] Canal Telegram
--   [x] RAG con Qdrant
--   [x] Frontend mínimo
--   [x] Panel admin (solo lectura)
+- [x] Sistema multi-agente Langroid
+- [x] RAG con Qdrant
+- [x] CRUD completo
+- [x] Integración Telegram
+- [x] API REST completa
+- [x] WebSocket para chat en tiempo real
+- [x] Cache con Redis
 
 ### Fase 2 (Futuro)
-
--   [ ] Ambos canales (Telegram + WhatsApp)
--   [ ] Subida de archivos y OCR
--   [ ] Panel admin con edición
--   [ ] Analytics avanzadas
--   [ ] Integración CRM/ERP
--   [ ] Multi-tenant
+- [ ] Subida de archivos y OCR
+- [ ] Panel admin con edición
+- [ ] Analytics avanzadas
+- [ ] Integración CRM/ERP
+- [ ] Multi-tenant
