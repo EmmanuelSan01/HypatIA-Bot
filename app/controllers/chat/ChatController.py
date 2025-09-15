@@ -8,90 +8,63 @@ from app.services.langroid_service import LangroidAgentService, HypatiaLangroidA
 from app.services.data_sync import DataSyncService
 
 class ChatController:
+    
     def __init__(self):
         self.agent_service = HypatiaLangroidAgent()
         self.langroid_service = LangroidAgentService()
         self.data_sync_service = DataSyncService()
-        self.user_course_context = {}  # Diccionario para guardar el curso actual por usuario
-        self.recent_context = {}  # Diccionario para guardar los últimos 4 mensajes por usuario
-
+    
     async def process_message(self, message: str, user_id: Optional[int] = None, chat_external_id: Optional[str] = None) -> Dict:
-        """Process message using Langroid Multi-Agent System and persist conversation, manteniendo solo los últimos 4 mensajes en contexto"""
+        """Process message using Langroid Multi-Agent System and persist conversation"""
         try:
-            # --- Actualizar contexto reciente ---
-            if user_id is not None:
-                if user_id not in self.recent_context:
-                    self.recent_context[user_id] = []
-                # Añadir mensaje del usuario
-                self.recent_context[user_id].append({"role": "user", "message": message})
-                # Mantener solo los últimos 4 mensajes
-                self.recent_context[user_id] = self.recent_context[user_id][-4:]
+            response = await self.langroid_service.process_message(
+                message=message, 
+                user_id=user_id,
+                persist_conversation=True
+            )
             
-            curso_actual = self.user_course_context.get(user_id)
-            curso_id = self._extract_curso_id(message)
-            if curso_id:
-                self.user_course_context[user_id] = curso_id
-                curso_actual = curso_id
-            # Preparar contexto para el modelo: 2 últimos usuario, 2 últimos bot
-            context_msgs = self.recent_context.get(user_id, [])
-            user_msgs = [m["message"] for m in context_msgs if m["role"] == "user"][-2:]
-            bot_msgs = [m["message"] for m in context_msgs if m["role"] == "bot"][-2:]
-            context_for_model = []
-            # Intercalar para mantener orden cronológico
-            for m in context_msgs[-4:]:
-                context_for_model.append(m)
-            # --- Llamar al modelo con contexto ---
-            if self._is_detalle_query(message) and curso_actual:
-                response = await self.langroid_service.process_message(
-                    message=message,
-                    user_id=user_id,
-                    persist_conversation=True,
-                    curso_id=curso_actual,
-                    context=context_for_model
-                )
-            else:
-                response = await self.langroid_service.process_message(
-                    message=message,
-                    user_id=user_id,
-                    persist_conversation=True,
-                    context=context_for_model
-                )
+            # Extract response data from Langroid format
             bot_reply = response.get("reply", "")
             chat_id = response.get("chat_id")
             conversation_stats = response.get("conversation_stats", {})
-            # Guardar mensajes en la base de datos y actualizar contexto reciente
+            
+            # Store conversation in database if user_id provided and not already persisted
             if user_id and not chat_id:
                 chat_record = await self._get_or_create_chat(user_id, chat_external_id)
+                
+                # Store user message
                 await self._store_message(
                     chat_id=chat_record['id'],
                     tipo='usuario',
                     contenido=message
                 )
+                
+                # Store bot response
                 await self._store_message(
                     chat_id=chat_record['id'],
                     tipo='bot',
                     contenido=bot_reply
                 )
+                
+                # Update chat summary
                 await self._update_chat_summary(chat_record['id'], message)
                 chat_id = chat_record['id']
-            # Añadir respuesta del bot al contexto reciente
-            if user_id is not None:
-                self.recent_context[user_id].append({"role": "bot", "message": bot_reply})
-                self.recent_context[user_id] = self.recent_context[user_id][-4:]
+            
             return {
                 "status": response.get("status", "success"),
                 "message": response.get("message", "Consulta procesada exitosamente"),
                 "data": {
                     "reply": bot_reply,
-                    "sources": [],
-                    "relevance_score": 1.0,
-                    "context_used": context_for_model,
+                    "sources": [],  # Langroid handles sources internally
+                    "relevance_score": 1.0,  # Langroid provides quality through multi-agent orchestration
+                    "context_used": [],
                     "chat_id": chat_id,
                     "agent_used": response.get("agent_used", "langroid_multi_agent"),
                     "conversation_stats": conversation_stats,
                     "timestamp": response.get("timestamp")
                 }
             }
+            
         except Exception as e:
             return {
                 "status": "error",
@@ -344,33 +317,3 @@ class ChatController:
                 return cursor.rowcount > 0
         finally:
             connection.close()
-    
-    def _is_curso_query(self, message: str) -> bool:
-        # Implementa lógica para detectar si el mensaje es sobre un curso específico
-        return "curso" in message.lower()
-
-    def _extract_curso_id(self, message: str) -> Optional[str]:
-        # Buscar el curso por nombre en la base de datos solo si hay nombre
-        from app.models.curso.CursoModel import CursoModel
-        nombre = self._extract_curso_nombre(message)
-        if not nombre or len(nombre) < 3:
-            return None
-        cursos = CursoModel.get_all_cursos()
-        for curso in cursos:
-            if nombre.lower() in curso.titulo.lower():
-                return str(curso.id)
-        # Si no se encuentra ningún curso, retorna None sin provocar error
-        return None
-
-    def _extract_curso_nombre(self, message: str) -> Optional[str]:
-        # Extrae el nombre del curso usando una expresión regular simple
-        import re
-        match = re.search(r'curso\s+([\w\s]+)', message, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-        return None
-
-    def _is_detalle_query(self, message: str) -> bool:
-        # Detecta si el usuario pregunta por detalles como precio, idioma, nivel, etc.
-        detalles = ["precio", "idioma", "nivel", "cupo"]
-        return any(det in message.lower() for det in detalles)
