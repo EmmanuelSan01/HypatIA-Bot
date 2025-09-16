@@ -438,7 +438,7 @@ Backend que proporciona:
 
 #### `KnowledgeAgent`
 - **Función**: Búsqueda y recuperación de conocimiento
-- **Herramientas**: `ProductSearchTool`, `PromotionSearchTool`
+- **Herramientas**: `CourseSearchTool`, `PromotionSearchTool`
 - **Capacidades**: Búsqueda semántica en catálogo de cursos
 
 #### `SalesAgent`
@@ -587,8 +587,8 @@ HypatIA-Bot
 |   |   |   └── IngestController.py    # Ingesta de datos para RAG
 |   |   ├── mensaje/
 |   |   |   └── MensajeController.py
-|   |   ├── producto/
-|   |   |   └── ProductoController.py
+|   |   ├── curso/
+|   |   |   └── CursoController.py
 |   |   ├── promocion/
 |   |   |   └── PromocionController.py
 |   |   ├── telegram/
@@ -604,8 +604,8 @@ HypatIA-Bot
 |   |   |   └── IngestModel.py
 |   |   ├── mensaje/
 |   |   |   └── MensajeModel.py
-|   |   ├── producto/
-|   |   |   └── ProductoModel.py
+|   |   ├── curso/
+|   |   |   └── CursoModel.py
 |   |   ├── promocion/
 |   |   |   └── PromocionModel.py
 |   |   ├── telegram/
@@ -619,8 +619,8 @@ HypatIA-Bot
 |   |   |   └── ChatRoutes.py
 |   |   ├── ingest/
 |   |   |   └── IngestRoutes.py
-|   |   ├── producto/
-|   |   |   └── ProductoRoutes.py
+|   |   ├── curso/
+|   |   |   └── CursoRoutes.py
 |   |   ├── promocion/
 |   |   |   └── PromocionRoutes.py
 |   |   ├── telegram/
@@ -707,7 +707,7 @@ chat (1) ←→ (N) mensaje
 - [x] Sistema multi-agente Langroid
 - [x] RAG con Qdrant
 - [x] CRUD completo
-- [x] Integración Telegram
+- [x] Integración WhatsApp
 - [x] API REST completa
 - [x] WebSocket para chat en tiempo real
 - [x] Cache con Redis
